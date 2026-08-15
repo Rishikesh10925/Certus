@@ -5,7 +5,7 @@ description = "Distribution-free risk guarantees for automated visual inspection
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 license = { text = "MIT" }
-authors = [{ name = "Rayyan Mohammed" }]
+authors = [{ name = "Rishikesh Talpaliker" }]
 
 dependencies = [
     "numpy==1.26.4",
