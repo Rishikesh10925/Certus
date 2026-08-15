@@ -1,0 +1,52 @@
+{
+  "root": "E:\\Certus\\data\\raw\\cbri",
+  "total_images_on_disk": 1518,
+  "annotations": {
+    "format": "coco",
+    "annotation_files": [
+      "test\\_annotations.coco.json",
+      "train\\_annotations.coco.json",
+      "valid\\_annotations.coco.json"
+    ],
+    "total_images_in_annotations": 1518,
+    "defect_positive": 982,
+    "defect_negative": 536,
+    "class_counts": {
+      "crack": 920,
+      "vegetation": 552,
+      "corrosion": 124,
+      "dampness": 23,
+      "dampens": 16
+    }
+  },
+  "site_camera_metadata": {
+    "pillow_available": true,
+    "images_sampled": 50,
+    "images_with_gps": 0,
+    "distinct_camera_makes": [],
+    "distinct_camera_models": [],
+    "exif_tag_presence_in_sample": {},
+    "filename_patterns": {
+      "total_filenames": 1518,
+      "delimiter_frequency": {
+        "_": 1518,
+        ".": 1518,
+        "-": 501
+      },
+      "example_stems": [
+        "00735_jpg.rf.b66b77379715a982cb53f37519c78964",
+        "01359_jpg.rf.69a16c20e477cf71dd9883739ea74a89",
+        "01708_jpg.rf.6bb01202ed098af5573a48337c9cf686",
+        "01725_jpg.rf.705469ef37b0ef42b7ba062cd49c47d5",
+        "019_jpg.rf.52609c678cad088916efbb8d10bedd09",
+        "02431_jpg.rf.f442e2b2c2135fce326bffea1daf06b5",
+        "025_jpg.rf.f8c1dc9cf1e6797eefacae66537b0eef",
+        "05033_jpg.rf.ffe7338640808874927e1a68663c13ca",
+        "103_jpg.rf.7cb7646ba9a901243b096caf706ebafd",
+        "11122-3_jpg.rf.8240e2adf13755d2b87b93672e358ea7"
+      ],
+      "stems_starting_with_digits": 1229,
+      "stems_looking_like_uuid_prefix": 192
+    }
+  }
+}
