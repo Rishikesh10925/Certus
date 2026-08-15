@@ -1,0 +1,8 @@
+# S5 -- MC-dropout dispersion. Predictive variance across K stochastic
+# forward passes. Captures epistemic uncertainty at K-times inference cost;
+# often the best performer under shift. Precompute once and cache
+# (roadmap 3.6, scores table).
+id: s5
+name: mc_dropout_dispersion
+params:
+  k_passes: 20

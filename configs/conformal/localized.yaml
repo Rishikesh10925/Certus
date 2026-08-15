@@ -1,0 +1,7 @@
+# Localized CP -- weights calibration points by similarity in the VLM's
+# latent space via a nonlinear transform of cosine similarity. Only worth
+# attempting once a domain classifier confirms sites separate in feature
+# space (roadmap 4.4, Week 2 diagnostic: AUC > 0.80 to proceed).
+method: localized_cp
+similarity_transform: null  # define the nonlinear transform once chosen in Week 12
+bandwidth: null

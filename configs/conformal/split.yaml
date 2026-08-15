@@ -1,0 +1,7 @@
+# Split conformal prediction -- the baseline machinery. LAC (Sadinle et al.),
+# APS (Romano et al.), and RAPS (Angelopoulos et al.) all live behind this
+# method with a `variant` switch. Implements the corrected quantile level
+# ceil((n+1)(1-alpha))/n -- see the off-by-one warning in roadmap 3.2.1.
+method: split_cp
+variant: lac  # lac | aps | raps
+alpha: 0.10

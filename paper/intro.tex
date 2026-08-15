@@ -1,0 +1,39 @@
+% =============================================================================
+% Certus -- contribution claims (locked in Week 1, roadmap Section 2.5)
+%
+% Exactly three. Do not add a fourth -- papers with three sharp claims get
+% accepted; papers with seven diffuse ones get rejected for lack of focus.
+%
+% C1. A systematic comparison of nonconformity scores for VLM-based defect
+%     detection, establishing which score family yields the tightest
+%     risk-controlled triage.
+%     Evidence: Figure F3 -- five or more scores, identical splits, 100
+%     seeds, efficiency at fixed risk.
+%
+% C2. The efficiency curve for risk-controlled inspection: the human-review
+%     fraction required to hold missed defects below epsilon, for epsilon
+%     across two orders of magnitude.
+%     Evidence: Figure F4 and the cost break-even analysis in Section 5.4.
+%     This is the figure that industry cares about.
+%
+% C3. A quantified failure of exchangeability under site-level shift, and a
+%     measured comparison of three shift-correction strategies in terms of
+%     both recovered coverage and lost efficiency.
+%     Evidence: Figures F5 and F6 -- the leave-one-site-out protocol. This
+%     is the research contribution proper.
+%
+% Thesis statement (Section 1.2):
+% "Accuracy is the wrong deployment metric for automated visual inspection.
+% The decision-relevant quantity is the human-review fraction required to
+% hold missed defects below a fixed risk budget, and that quantity can be
+% bounded without distributional assumptions -- but the bound silently
+% breaks under site-level distribution shift, which is the operating
+% condition inspection systems actually face. We quantify the break and
+% measure how much of the guarantee shift-aware calibration recovers, and
+% at what cost."
+% =============================================================================
+
+\section{Introduction}
+% TODO (Week 15, roadmap Section 9.2, Section 9.3): write the three-sentence
+% deployment-gap opening, then state C1-C3 above as a numbered list.
+% Write the abstract last, always.

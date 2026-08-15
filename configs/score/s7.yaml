@@ -1,0 +1,9 @@
+# S7 -- Learned combination. Small logistic regression / gradient-boosted
+# model over S1-S6, fitted ONLY on a tuning split disjoint from calibration.
+# Fitting this on the calibration set breaks exchangeability -- see the
+# "three splits, not two" warning in roadmap 3.3. Usually the best performer.
+id: s7
+name: learned_combination
+base_scores: [s1, s2, s3, s4, s5, s6]
+model: logistic_regression  # logistic_regression | gradient_boosted
+params: {}

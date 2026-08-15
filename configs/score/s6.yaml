@@ -1,0 +1,9 @@
+# S6 -- Feature-space typicality. Mahalanobis or k-NN distance to the
+# training feature distribution. An out-of-distribution signal rather than
+# a defect signal; the shift-aware candidate score. See roadmap 3.3 and the
+# localized-CP method (3.2.4).
+id: s6
+name: feature_typicality
+params:
+  metric: mahalanobis  # mahalanobis | knn
+  k: 10  # only used when metric == knn

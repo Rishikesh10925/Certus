@@ -1,0 +1,6 @@
+# S4 -- Detector objectness. 1 - max confidence over predicted defect boxes
+# from the detection head, if present. Strong on localised defects, weak on
+# diffuse ones such as spalling or efflorescence. See roadmap 3.3.
+id: s4
+name: detector_objectness
+params: {}

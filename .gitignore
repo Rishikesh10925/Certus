@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Testing / tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# DVC -- pointers only, never raw data blobs
+/data/**
+!/data/**/
+!/data/**/*.dvc
+!/data/**/.gitignore
+!/data/.gitkeep
+!/data/README.md
+.dvc/cache
+.dvc/tmp
+
+# Env / secrets
+.env
+*.local.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LaTeX
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/*.synctex.gz
+
+# Node (ui/)
+ui/node_modules/
+ui/dist/
+
+# Weights & Biases
+wandb/

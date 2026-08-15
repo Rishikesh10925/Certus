@@ -1,0 +1,8 @@
+# Unified view over primary + secondary datasets, used once both are
+# standardised into the common schema in src/certus/data/loaders.py
+# (images/labels tables, roadmap Section 3.6).
+name: merged
+sources:
+  - data/cbri.yaml
+  - data/secondary.yaml
+split_manifest: null  # path to the frozen, hashed split manifest (roadmap 4.4) -- set in Week 2, never regenerated after
