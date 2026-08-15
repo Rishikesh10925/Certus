@@ -1,0 +1,18 @@
+# Primary dataset -- CBRI Building Defect Detection (Roboflow export).
+# See roadmap Part IV Section 4.2. Audited Week 1 -- see docs/logbook.md and
+# docs/audit/cbri_audit_report_v1.json for the full report.
+#
+# n_pos = 982, n_neg = 536, n_total = 1518 (roboflow.com/rishikesh-talpalikar/
+# building-defect-decetation-wmfkw, version 1, no augmentation/preprocessing).
+# DVC-tracked at data/raw/cbri.dvc -- run `dvc pull` to materialise it.
+name: cbri
+root: data/raw/cbri
+format: coco  # confirmed by scripts/audit_data.py -- Roboflow's default export
+site_id_field: null  # confirmed absent -- no site_id/camera_id field in the Roboflow
+camera_id_field: null  # schema, no GPS/Make/Model EXIF in a 50-image sample (see logbook).
+# Proxy-site strategy for Week 2: EXIF and filenames carry no signal, so
+# feature clustering (frozen VLM embeddings) is the fallback plan -- see
+# src/certus/data/sites.py and the Week-2 domain-classifier diagnostic.
+classes: [crack, vegetation, corrosion, dampness, dampens]  # "dampens" looks like a
+# labelling typo for "dampness" in the source project (23 vs 16 instances) -- flagged
+# in the logbook, not merged yet since that's a data-cleaning decision, not an audit one.
