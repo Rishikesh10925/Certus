@@ -1,0 +1,11 @@
+# E2 -- Score comparison. Which nonconformity score gives the tightest
+# risk-controlled triage for a VLM defect detector? Produces Figure F3,
+# Table 2. Contribution C1. See roadmap 5.2.
+defaults:
+  - /data: cbri
+  - /conformal: crc
+  - _self_
+
+experiment: e2_scores
+scores: [s1, s2, s3, s4, s5, s6, s7]
+n_seeds: 100

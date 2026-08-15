@@ -1,0 +1,7 @@
+# Weighted CP -- reweights calibration points by an estimated likelihood
+# ratio w(x) = p_test(x) / p_cal(x) from a domain classifier over VLM
+# features. Valid only under covariate shift (P(Y|X) must stay stable).
+# See roadmap 3.2.4.
+method: weighted_cp
+domain_classifier: logistic_regression
+min_effective_sample_size: null  # log this every run -- it is the diagnostic that flags silent failure

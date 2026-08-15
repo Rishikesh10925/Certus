@@ -1,0 +1,12 @@
+# E3 -- Efficiency curve. How much human review does a guaranteed miss rate
+# of epsilon actually cost? Produces Figures F4 and F8. Contribution C2 --
+# the industrially important result. See roadmap 5.2, 5.4.
+defaults:
+  - /data: cbri
+  - /conformal: crc
+  - _self_
+
+experiment: e3_efficiency
+epsilon_sweep: [0.10, 0.05, 0.02, 0.01, 0.005]
+best_scores: [s7, s5, s1]  # narrow to the winners from E2 once known
+cost_ratio_sweep: [10, 30, 100, 300, 1000]  # c_m / c_h, roadmap 5.4

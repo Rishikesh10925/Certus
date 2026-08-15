@@ -1,0 +1,7 @@
+# S1 -- Classifier logit. 1 - softmax probability of the defect class from a
+# linear head on pooled visual features. Solid baseline, fast; requires
+# training a small head (src/certus/models/heads.py). See roadmap 3.3.
+id: s1
+name: classifier_logit
+requires_head: true
+params: {}

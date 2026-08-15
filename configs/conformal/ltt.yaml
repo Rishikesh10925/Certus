@@ -1,0 +1,9 @@
+# Learn-then-Test -- the regulator-grade upgrade (roadmap 3.2.3). Gives
+# P(R(lambda_hat) <= epsilon) >= 1 - delta via Hoeffding-Bentkus p-values
+# and fixed-sequence FWER control along the monotone lambda grid.
+method: ltt
+epsilon: 0.02
+delta: 0.05
+p_value: hoeffding_bentkus
+fwer_control: fixed_sequence
+lambda_grid_size: 1000

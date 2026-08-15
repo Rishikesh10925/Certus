@@ -1,0 +1,12 @@
+# Secondary dataset -- required by the end of Week 2 (roadmap 4.2, hard gate).
+# Candidates: SDNET2018, Concrete Crack Images for Classification, CRACK500,
+# METU campus crack dataset.
+# Purpose: supplies the genuine distribution shift that the LOSO experiment
+# (E4) depends on -- different camera, geography, and annotation convention
+# from the primary dataset.
+name: secondary
+root: ???
+format: ???
+site_id_field: null
+camera_id_field: null
+classes: []

@@ -1,0 +1,6 @@
+# Conformal risk control -- the primary method (roadmap 3.2.2). Bounds
+# E[L_test(lambda_hat)] <= epsilon for the asymmetric missed-defect loss,
+# not marginal coverage.
+method: crc
+epsilon: 0.02
+loss: missed_defect  # L_i(lambda) = 1{y_i = defect and s(x_i) < lambda}

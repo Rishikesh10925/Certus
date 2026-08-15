@@ -1,0 +1,14 @@
+# E1 -- Validity check. Does the implementation produce the coverage it
+# claims on exchangeable data? A correctness test, not a result -- but if
+# this fails, nothing downstream means anything. Produces Figure F2.
+# See roadmap 5.2.
+defaults:
+  - /data: cbri
+  - /score: s1
+  - /conformal: split
+  - _self_
+
+experiment: e1_validity
+n_seeds: 100
+alphas: [0.01, 0.05, 0.10, 0.20]
+n_cal_sizes: [50, 200, 1000]

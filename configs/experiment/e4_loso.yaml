@@ -1,0 +1,10 @@
+# E4 -- LOSO shift. How badly does the guarantee break across sites, and
+# how much do shift-aware methods recover? Produces Figures F5, F6, F7.
+# Contribution C3 -- the research result. See roadmap 5.2.
+defaults:
+  - /data: merged
+  - _self_
+
+experiment: e4_loso
+methods: [split_cp, mondrian, weighted_cp, localized_cp]
+n_folds: null  # set to the number of distinct sites once site_id is confirmed (roadmap 4.4)
