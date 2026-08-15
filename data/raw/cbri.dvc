@@ -1,0 +1,6 @@
+outs:
+- md5: bfa1e4e9442a5689be694458c34e10fd.dir
+  size: 108564754
+  nfiles: 1523
+  hash: md5
+  path: cbri
