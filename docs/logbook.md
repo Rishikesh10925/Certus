@@ -103,46 +103,79 @@ for the LOSO study. Recorded in `src/certus/data/sites.py`.
 ### Angelopoulos & Bates, "A Gentle Introduction to Conformal Prediction
 ### and Distribution-Free Uncertainty Quantification" (arXiv:2107.07511)
 
-Read end to end, appendices included. Notes against what Certus actually
-needs:
+Read end to end, appendices included. Notes below were written from memory
+first, then checked against the live text (ar5iv.labs.arxiv.org/html/2107.07511,
+2026-08-16) and corrected in two places where memory was imprecise --
+flagged inline as **(corrected)**.
 
-- The whole guarantee rests on **exchangeability**, not i.i.d. -- calibration
-  and test points just need to be drawn in a way that's invariant to
-  reordering. That's the precise assumption site-level shift breaks, which
-  is the paper's own honest-scoping point (Section 9) and the entire
-  reason Certus's C3 exists.
+Full structure, confirmed against the live text: Section 1 Conformal
+Prediction, 2 Examples of Conformal Procedures, 3 Evaluating Conformal
+Prediction, 4 Extensions (includes 4.1 Group-Balanced CP and 4.4 Outlier
+Detection), 5 Worked Examples, 6 Full Conformal Prediction; Appendix A
+Distribution-Free Control of General Risks (includes a Learn-then-Test
+procedure), B Examples of Distribution-Free Risk Control (multilabel FDR
+control, simultaneous OOD detection), C Concentration Properties of
+Empirical Coverage, D Theorem and Proof of the coverage guarantee.
+
 - **Split conformal prediction**: hold out a calibration set, compute a
   nonconformity score `s(x, y)` on it, take the
   `ceil((n+1)(1-alpha)) / n` empirical quantile of those scores (not the
   naive `1-alpha` quantile -- that's the off-by-one the roadmap flags for
-  Week 3's first test), and threshold test-time scores against it. Marginal
-  coverage `P(Y in C(X)) >= 1-alpha` holds in finite samples, no
-  distributional assumptions on the model or the data.
+  Week 3's first test), and threshold test-time scores against it. Confirmed
+  verbatim in the text as Equation 1:
+  `1-alpha <= P(Y_test in C(X_test)) <= 1-alpha + 1/(n+1)` -- so the
+  overcoverage bound isn't "roughly" 1/(n+1), it's the exact stated upper
+  bound. Undercoverage below nominal is the real bug signal; that asymmetry
+  is what Week 5's Figure F2 gate is checking for, not just "close to the
+  diagonal."
+- **(corrected) i.i.d. vs. exchangeability**: the paper's own Theorem 1 is
+  stated for the case where calibration and test points are i.i.d., not the
+  weaker exchangeability condition -- "exchangeable" appears exactly once
+  in the whole text, in Section 4.4's outlier-detection permutation test,
+  not as the headline assumption. The "exchangeability is THE assumption
+  conformal prediction rests on, and it's what site shift breaks" framing
+  is accurate to the broader literature -- it's literally how the Certus
+  blueprint's own glossary defines it, and it's the explicit framing of two
+  papers later on the reading list (Tibshirani et al., "Conformal
+  Prediction Under Covariate Shift"; Barber et al., "Conformal Prediction
+  Beyond Exchangeability") -- but it's not how this particular tutorial
+  states its own core theorem. Previously misattributed a "Section 9
+  honest-scoping point" to this paper; that section number belongs to the
+  Certus blueprint, not to Angelopoulos & Bates. My mistake, corrected here
+  rather than silently.
 - **Score choice determines efficiency, not validity**: LAC (1 - softmax of
   the true class) gives valid but often needlessly large sets; APS
   (cumulative softmax mass until the true class is covered) adapts set size
-  to difficulty and is usually tighter; RAPS regularizes APS to stop
-  pathologically large sets on noisy softmax tails. This is directly S1
-  vs. the APS/RAPS baselines Certus compares in Week 4.
-  <br>Overcoverage is expected and bounded above by roughly `1/(n_cal+1)`;
-  undercoverage below nominal is the real bug signal -- that asymmetry is
-  what Week 5's Figure F2 gate is checking for, not just "close to the
-  diagonal."
+  to difficulty and is usually tighter. This is directly S1 vs. the
+  APS baseline Certus compares in Week 4.
+  <br>**(corrected) RAPS**: the tutorial cites Angelopoulos et al. 2020 for
+  RAPS ("significant practical improvements, which we implemented here")
+  but doesn't itself explain the regularization mechanism -- that detail
+  (a penalty added past the top-k classes to stop pathologically large sets
+  on noisy softmax tails) comes from the cited paper, not from this
+  tutorial's own exposition. Worth reading that paper directly before
+  implementing S1's APS/RAPS baselines in Week 4, rather than relying on
+  this tutorial's one-line mention.
 - **Conditional coverage is not implied by marginal coverage** -- a set can
   hit 90% coverage overall while being badly wrong on a specific subgroup
-  or class. The appendices' discussion of this is exactly the SSCV /
-  class-conditional coverage work scheduled for Week 13, and it's the
-  reason a single marginal LOSO number in Week 10-12 won't be enough on its
-  own without the per-class breakdown later.
-- The appendices also cover the **calibration-set-size / finite-sample
-  correction** in more depth and touch conformal prediction beyond
-  classification (regression, few-shot) -- useful background, not
-  load-bearing for Certus's classification-shaped triage problem.
+  or class. This is exactly the SSCV / class-conditional coverage work
+  scheduled for Week 13, and it's the reason a single marginal LOSO number
+  in Week 10-12 won't be enough on its own without the per-class breakdown
+  later.
+- Section 4.1, "Group-Balanced Conformal Prediction," is the direct
+  precursor to the Mondrian CP (`mondrian.py`) Certus implements in Week
+  11 -- one threshold per group instead of one global threshold, which is
+  exactly the per-site-cluster calibration the shift-correction arm needs.
+- Appendix A's Learn-then-Test procedure previews the separate LTT paper
+  (Angelopoulos et al., "Learn Then Test") on the Week 7 reading list --
+  useful to have seen the simpler version here first.
 - Practical takeaway that shapes the whole repo's discipline: nothing that
-  touches the calibration set may also have been fit on it. The blueprint's
-  rule that no function whose name starts with `fit_` may see calibration
-  data is this paper's central failure mode, encoded as a naming
-  convention instead of trusted to memory.
+  touches the calibration set may also have been fit on it. Step 1 of the
+  algorithm ("identify a heuristic uncertainty notion using the
+  **pre-trained** model") assumes the model is already frozen before
+  calibration ever starts. The blueprint's rule that no function whose name
+  starts with `fit_` may see calibration data encodes exactly that failure
+  mode as a naming convention instead of trusting it to memory.
 
 Angelopoulos et al., "Conformal Risk Control" (ICLR 2024) is scheduled for
 Week 2, not read yet.
