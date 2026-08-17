@@ -179,3 +179,49 @@ Empirical Coverage, D Theorem and Proof of the coverage guarantee.
 
 Angelopoulos et al., "Conformal Risk Control" (ICLR 2024) is scheduled for
 Week 2, not read yet.
+
+## Week 2 -- Shift Verification & Scope Lock (2026-08-17)
+
+### Angelopoulos, Bates, Fisch, Lei, Schuster, "Conformal Risk Control"
+### (arXiv:2208.02814, ICLR 2024)
+
+Fetched and read directly from ar5iv.labs.arxiv.org/html/2208.02814 rather
+than from memory, given the correction needed last week. One thing memory
+had wrong immediately: the author list. This is Angelopoulos, Bates,
+**Fisch, Lei, and Schuster** -- not Candes and Jordan, who I'd have guessed
+if I hadn't checked.
+
+- **The algorithm**: `lambda_hat = inf{lambda : (n/(n+1)) * R_hat_n(lambda)
+  + B/(n+1) <= alpha}`, where `R_hat_n(lambda)` is the empirical average of
+  a per-example loss `L_i(lambda)` over the calibration set, and `B` is a
+  bound on the loss. If no `lambda` satisfies the constraint, fall back to
+  `lambda_max`. This is `crc.py`'s entire job.
+- **The guarantee (Theorem 1)**: `E[L_{n+1}(lambda_hat)] <= alpha`. Theorem
+  2 adds a matching lower bound, `E[L_{n+1}(lambda_hat)] >= alpha -
+  2B/(n+1)` for i.i.d. continuous losses -- so the guarantee is tight up to
+  `O(1/n)`, not just an inequality that could be loose in practice.
+- **Monotonicity is the load-bearing assumption**: `L_i(lambda)` must be
+  non-increasing in `lambda` (more conservative threshold -> loss can only
+  go down). The proof leans on this through exchangeability and order
+  statistics; Proposition 2 shows control can fail outright for non-monotone
+  losses. This is exactly why the roadmap calls out "unit-test monotonicity
+  of L(lambda) explicitly" for Week 6 -- it's not a nice-to-have property,
+  it's the one thing standing between this working and silently not.
+- **Relation to split CP**: Section 2.3 shows plain conformal prediction
+  (miscoverage loss, `L = 1{Y not in C(X)}`) is the special case where this
+  formula reduces to the ordinary conformal quantile. CRC is the
+  generalization to any monotone loss -- concretely, the asymmetric
+  missed-defect loss Certus actually cares about, not just 0/1 coverage.
+- **Extensions (Section 4)**, relevant to later weeks in order: 4.1
+  distribution shift via importance weighting (Propositions 3-4) --
+  directly relevant to `weighted.py`, Week 11; 4.2 quantile risk control
+  (Proposition 5); 4.3 multiple risk control over an indexed family
+  (Proposition 6); 4.4 adversarial risk via a supremum over perturbations;
+  4.5 U-risk control for paired losses. Appendix A covers non-monotone
+  losses via asymptotic monotonization, for whenever monotonicity itself
+  can't be guaranteed by construction.
+
+### Shift diagnostic, secondary dataset, and split freeze
+
+In progress -- see below once the domain-classifier AUC, secondary dataset
+download, and manifest hash are in hand.
