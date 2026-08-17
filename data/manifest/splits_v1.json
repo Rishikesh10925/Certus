@@ -1,0 +1,9 @@
+{
+  "manifest": "splits_v1.csv",
+  "n_records": 57610,
+  "datasets": [
+    "cbri",
+    "sdnet2018"
+  ],
+  "overall_hash": "aeaa352bc406420f5a685578ed26bd346332fa9b241b54e5e41407056612aeb7"
+}
