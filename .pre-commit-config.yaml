@@ -11,7 +11,13 @@ repos:
     hooks:
       - id: mypy
         files: ^src/certus/
-        additional_dependencies: []
+        additional_dependencies:
+          - --extra-index-url=https://download.pytorch.org/whl/cpu
+          - numpy==1.26.4
+          - torch==2.2.1
+          - transformers==4.38.2
+          - scikit-learn==1.4.1.post1
+          - pillow==10.2.0
 
   - repo: https://github.com/kynan/nbstripout
     rev: 0.7.1
@@ -26,3 +32,4 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
         args: [--maxkb=1024]
+        exclude: ^data/manifest/  # frozen split manifests are text, deliberately committed, and grow with dataset size
