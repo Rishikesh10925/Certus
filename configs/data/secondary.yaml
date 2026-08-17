@@ -1,12 +1,13 @@
-# Secondary dataset -- required by the end of Week 2 (roadmap 4.2, hard gate).
-# Candidates: SDNET2018, Concrete Crack Images for Classification, CRACK500,
-# METU campus crack dataset.
+# Secondary dataset -- downloaded Week 2 (roadmap 4.2, hard gate).
+# SDNET2018 (Utah State University, doi.org/10.15142/T3TD19): 56,092 images
+# of cracked/uncracked concrete decks (D), pavements (P), and walls (W),
+# 256x256, a different acquisition source and imaging setup from CBRI/
+# Roboflow entirely -- see docs/logbook.md for why this one was picked.
 # Purpose: supplies the genuine distribution shift that the LOSO experiment
-# (E4) depends on -- different camera, geography, and annotation convention
-# from the primary dataset.
+# (E4) depends on.
 name: secondary
-root: ???
-format: ???
-site_id_field: null
+root: data/raw/sdnet2018
+format: sdnet2018-folders  # <D|P|W>/<C|U><D|P|W>/*.jpg, see src/certus/data/loaders.py
+site_id_field: filename_prefix  # confirmed real: 230 distinct structure IDs (54 deck + 104 pavement + 72 wall)
 camera_id_field: null
-classes: []
+classes: [crack]
