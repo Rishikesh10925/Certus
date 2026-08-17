@@ -221,7 +221,128 @@ if I hadn't checked.
   losses via asymptotic monotonization, for whenever monotonicity itself
   can't be guaranteed by construction.
 
-### Shift diagnostic, secondary dataset, and split freeze
+### Secondary dataset
 
-In progress -- see below once the domain-classifier AUC, secondary dataset
-download, and manifest hash are in hand.
+Picked SDNET2018 (Utah State University, doi.org/10.15142/T3TD19) --
+concrete crack images from decks, pavements, and walls, 256x256, a
+completely different acquisition source from CBRI/Roboflow (different
+camera setup, different subject framing -- close-up concrete surfaces
+rather than whole-building photos). Downloaded directly from USU's
+DigitalCommons (503.8 MB); the connection truncated twice partway through
+(curl error 18, "end of response ... bytes missing") before a `curl -C -`
+resume completed it. Verified: `unzip -t` reported no errors, and the
+extracted counts match the published dataset description exactly --
+
+| | Cracked | Uncracked | Total |
+|---|---|---|---|
+| Decks (D) | 2025 | 11595 | 13620 |
+| Pavements (P) | 2608 | 21726 | 24334 |
+| Walls (W) | 3851 | 14287 | 18138 |
+| **Total** | **8484** | **47608** | **56092** |
+
+One thing not in the public dataset description, found by inspecting the
+filenames directly: every image is named `<structure_id>-<n>.jpg` (e.g.
+`7001-115.jpg`), and `structure_id` is a genuine, consistent physical
+structure identifier -- 54 distinct decks, 104 pavements, 72 walls, 230
+total, confirmed by checking that every one of the 56,092 filenames
+matches the pattern and that structure IDs don't collide across images.
+This is real site_id, not a proxy -- see `load_sdnet2018_images` in
+`src/certus/data/loaders.py`. DVC-tracked at `data/raw/sdnet2018.dvc`.
+
+### Domain-classifier shift diagnostic
+
+Two separate runs (`scripts/shift_diagnostic.py`), both on frozen CLIP
+ViT-B/32 embeddings (`openai/clip-vit-base-patch32` -- there's no
+fine-tuned Certus VLM checkpoint yet, see `src/certus/models/vlm.py`),
+full results in `docs/audit/week2_shift_diagnostic.json`.
+
+**1. Within-CBRI proxy sites** (KMeans on CBRI's own 1518 embeddings, k
+chosen by silhouette score over k=3..7, then a logistic regression asked
+to tell the resulting clusters apart):
+
+- Best k = 4, but the silhouette score at every k tested was ~0.10-0.11.
+  By the usual reading of that statistic (Kaufman & Rousseeuw: below ~0.25
+  means no substantial structure found), CBRI's own feature space doesn't
+  contain natural, well-separated groups -- consistent with Week 1's
+  finding that there's no real site metadata, extending it to "and no
+  strong latent site structure in the visual features either, at least
+  not one KMeans finds."
+- Despite that, the domain classifier scored **AUC = 0.9988** on those
+  same clusters -- which reads as a contradiction until you remember what
+  it's actually testing. A linear classifier separating KMeans's own
+  output in a 512-dimensional embedding space with ~1500 points is close
+  to guaranteed regardless of whether the clusters mean anything: KMeans
+  partitions are close to linearly separable by construction, and 512
+  dimensions over ~1500 points is exactly the regime where that bites
+  hardest. **This AUC is not evidence the proxy sites are real.**
+  Reporting it without the silhouette context would have been a
+  methodologically indefensible way to wave the Week 2 gate through --
+  flagging it here instead. Conclusion: CBRI-internal clustering is not
+  used as a LOSO site definition.
+
+**2. CBRI vs. SDNET2018** (1518 CBRI embeddings vs. 1500 randomly sampled
+SDNET2018 embeddings, binary domain classifier): **AUC = 0.9996**. This
+one is not circular -- CBRI and SDNET2018 are independently collected by
+different people, with different cameras, at different times, of
+different subjects (whole buildings vs. close-up concrete surfaces). A
+near-perfect AUC here is exactly what "genuine distribution shift" should
+look like, and it's the real result the Week 2 gate needed.
+
+### Week 2 hard gate: MET
+
+The gate requires 400+ defect-positive images across 3+ distinguishable
+sites, or an explicit pivot. Both halves are satisfied, but not the way
+the roadmap's default plan assumed:
+
+- **Defect-positive count**: 982 (CBRI) + 8484 (SDNET2018) = 9466, or 982
+  alone -- either way, far past 400. Never actually in doubt; Week 1
+  already showed CBRI alone clears this.
+- **3+ distinguishable sites**: not from CBRI-internal proxy clusters
+  (shown above to be unreliable) -- from SDNET2018's 230 genuine
+  structure IDs (or, coarsely, its 3 real structure-type categories:
+  deck/pavement/wall) plus CBRI as a confirmed-distinguishable fourth
+  source (AUC 0.9996 against SDNET2018). That's comfortably past 3, on
+  real metadata for SDNET2018's side and a verified diagnostic for the
+  CBRI-vs-secondary split.
+
+**Decision, recorded explicitly rather than deferred**: the LOSO site
+taxonomy for later weeks will be built from SDNET2018's real structure IDs
+and the CBRI/SDNET2018 dataset boundary, not from clustering CBRI on its
+own. If within-CBRI shift specifically turns out to matter later, that's a
+question for the Week 2.4.4 domain-classifier monitoring going forward,
+revisited with better evidence than a k=4 KMeans call -- not resolved by
+fiat here.
+
+### Achievable epsilon range, updated
+
+Unchanged from Week 1 for the primary calibration engine: CBRI n_pos = 982
+still governs it, since SDNET2018 is a shift-study dataset, not part of
+the primary detector's calibration pool (different classes -- crack only,
+vs. CBRI's crack/vegetation/corrosion/dampness -- and a different visual
+domain entirely). epsilon >~ 0.02 is still the honest floor; 0.01 is still
+18 images short (982 vs. 1000 needed). SDNET2018 does not change this
+number, and pooling the two for calibration would not be a defensible
+move given how different their label schemas and domains are -- it
+supplies additional *sites* for the shift study, not additional
+*calibration* n_pos for the primary engine.
+
+### Split manifest
+
+Frozen and content-hashed at `data/manifest/splits_v1.csv`
+(`scripts/freeze_splits.py`) -- CBRI keeps Roboflow's train/valid/test
+(valid renamed to cal), SDNET2018 gets a fresh deterministic 70/15/15
+stratified split (seed 0) since it ships none.
+
+- **57,610 rows** (1518 CBRI + 56,092 SDNET2018), **9466 defect-positive**
+  (982 + 8484).
+- **Manifest hash**:
+  `aeaa352bc406420f5a685578ed26bd346332fa9b241b54e5e41407056612aeb7` --
+  sha256 over the sorted per-file content hashes. This is the number that
+  makes the split tamper-evident: any changed pixel in any tracked image,
+  or any re-run of the freeze script with a different seed or ratio,
+  changes this hash. It does not change on its own between runs (verified:
+  re-ran `freeze_splits.py` twice, identical hash both times).
+- Committed directly to git (not DVC) at 6.9 MB -- it's provenance data
+  meant to be diffed and read, not a raw data blob; `.pre-commit-config.yaml`'s
+  large-file check now excludes `data/manifest/` explicitly for exactly
+  this reason rather than raising the limit globally.
