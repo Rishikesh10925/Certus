@@ -1,0 +1,6 @@
+outs:
+- md5: 57bf447eac27fc1402874715745b0b73.dir
+  size: 530772754
+  nfiles: 56092
+  hash: md5
+  path: sdnet2018

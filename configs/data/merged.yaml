@@ -5,4 +5,4 @@ name: merged
 sources:
   - data/cbri.yaml
   - data/secondary.yaml
-split_manifest: null  # path to the frozen, hashed split manifest (roadmap 4.4) -- set in Week 2, never regenerated after
+split_manifest: data/manifest/splits_v1.csv  # frozen Week 2 -- 57,610 rows, hash aeaa352b...12aeb7 (docs/logbook.md), never regenerated after
