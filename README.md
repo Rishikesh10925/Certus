@@ -25,29 +25,6 @@ Certus is an applied contribution, not a theoretical one. The conformal machiner
 
 Two loops — offline calibration and online triage — joined by a random audit stream that keeps ongoing recalibration statistically valid instead of silently biased by the triage policy's own decisions.
 
-```mermaid
-flowchart LR
-    subgraph OFFLINE["Offline Calibration Loop"]
-        CP["Calibration Pool<br/>labelled, site/camera-tagged"] --> S1["Frozen VLM Scoring<br/>(no gradient, no training)"]
-        S1 --> CE["Calibration Engine<br/>Split CP · CRC · Learn-then-Test"]
-        CE -.weekly batch job.-> WR["Weekly Recalibration"]
-        WR -.-> CE
-    end
-
-    subgraph ONLINE["Online Triage Loop"]
-        IMG["Incoming Inspection Image"] --> S2["Frozen VLM<br/>single forward pass"]
-        S2 --> TD{"Compare score to λ̂"}
-        TD -->|"below threshold"| AC["AUTO_CLEAR<br/>+ attached risk statement"]
-        TD -->|"above threshold"| FL["FLAG / ESCALATE"]
-    end
-
-    CE -->|"λ̂, q̂ per site cluster"| TD
-    IMG --> AS["Random Audit Stream<br/>~3% of all images, sampled<br/>independently of triage outcome"]
-    FL --> HR["Human Review"]
-    AS --> HR
-    HR -->|"new ground truth"| CP
-    S1 -.-> SM["Shift Monitoring<br/>domain-classifier AUC over VLM features"]
-```
 
 The frozen VLM never trains on the critical path — it's scored once per calibration image (cached and reused across every experiment) and once per online image (a single, sub-millisecond forward pass). The calibration split is treated as physically inaccessible to anything that fits a score: no function whose name begins with `fit_` is allowed to see calibration data, which is the discipline that rules out the most common conformal-prediction bug before it can compile.
 
