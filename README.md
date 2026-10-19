@@ -5,7 +5,7 @@ Distribution-free risk guarantees for automated visual inspection: a conformal r
 [![CI](https://github.com/Rishikesh10925/Certus/actions/workflows/ci.yml/badge.svg)](https://github.com/Rishikesh10925/Certus/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
 
-> **Status: Phase 0 — Foundation (Week 1 of 18).** No calibration, scoring, or shift-correction logic is implemented yet. This repository currently contains the project skeleton, CI, the data-audit tooling, and a DVC-tracked copy of the primary dataset. See [`docs/logbook.md`](docs/logbook.md) for the running record of what's actually been done, week by week.
+> **Status: Phase 1 — Conformal core (Week 3 of 18).** The corrected conformal quantile and split CP with LAC are implemented and checked by a 500-trial validity property test on every push. Scoring, risk control, and shift correction are not implemented yet. See [`docs/logbook.md`](docs/logbook.md) for the running record of what's actually been done, week by week.
 
 ---
 

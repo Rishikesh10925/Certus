@@ -346,3 +346,114 @@ stratified split (seed 0) since it ships none.
   meant to be diffed and read, not a raw data blob; `.pre-commit-config.yaml`'s
   large-file check now excludes `data/manifest/` explicitly for exactly
   this reason rather than raising the limit globally.
+
+## Week 3 -- The Quantile, Tested First (2026-10-19)
+
+### Corrected quantile
+
+`src/certus/conformal/quantile.py`: `conformal_quantile(scores, alpha)`
+returns the exact k-th order statistic, k = ceil((n+1)(1-alpha)), and +inf
+when k > n. That last case is real, not an edge case: at alpha = 0.01 with
+n_cal = 50, k = 51 > 50, so no finite threshold certifies 99% and every
+set is the full label set. Deliberately not `np.quantile`. Its default
+linear interpolation lands between two order statistics, below the k-th,
+which is precisely the under-coverage bug. `tests/test_quantile.py` pins
+hand-computed k values, including the exact-integer cases (n=9 and n=19
+at alpha=0.1) where a sloppy ceil would round up.
+
+### Split CP with LAC
+
+`src/certus/conformal/split_cp.py`: `lac_scores` (1 - p_true),
+`calibrate_lac`, `predict_sets_lac`. Calibration functions are named
+`calibrate_*`, never `fit_*`, per the blueprint's naming rule. Set
+membership is tested on the score (`1 - p <= q_hat`), not rearranged to
+`p >= 1 - q_hat`, so the comparison is bit-identical to calibration and
+the boundary point always covers itself. APS and RAPS are Week 4.
+
+### Validity property test
+
+`tests/test_validity.py`: 500 trials per configuration, alpha in
+{0.01, 0.05, 0.10, 0.20} x n_cal in {50, 200, 1000} (the e1_validity
+grid), 500 test points per trial, K=5 synthetic classes with a
+deliberately miscalibrated, noisy model. Pass condition is asymmetric:
+mean coverage >= 1-alpha - 4 SE, and <= 1-alpha + 1/(n_cal+1) + 4 SE.
+It already runs on every push because CI runs `pytest`, so the workflow
+needed no change. The whole suite takes about 7 s locally.
+
+| alpha | n_cal | mean coverage | SE | theory E[cov] = k/(n+1) |
+|---|---|---|---|---|
+| 0.01 | 50 | 1.0000 | 0.0000 | 1.0000 (k > n, full sets) |
+| 0.01 | 200 | 0.9903 | 0.0004 | 0.9900 |
+| 0.01 | 1000 | 0.9899 | 0.0002 | 0.9900 |
+| 0.05 | 50 | 0.9604 | 0.0013 | 0.9608 |
+| 0.05 | 200 | 0.9493 | 0.0008 | 0.9502 |
+| 0.05 | 1000 | 0.9492 | 0.0005 | 0.9500 |
+| 0.10 | 50 | 0.9002 | 0.0020 | 0.9020 |
+| 0.10 | 200 | 0.9015 | 0.0011 | 0.9005 |
+| 0.10 | 1000 | 0.8992 | 0.0008 | 0.9001 |
+| 0.20 | 50 | 0.8005 | 0.0026 | 0.8039 |
+| 0.20 | 200 | 0.8033 | 0.0015 | 0.8010 |
+| 0.20 | 1000 | 0.8008 | 0.0010 | 0.8002 |
+
+Every row is within about 2 SE of the exact theoretical expectation, so
+nothing here is luck at the 4 SE tolerance. The lowest rows, like
+0.9492 at alpha=0.05 and n=1000, sit just under nominal by Monte-Carlo
+noise (0.8 SE below the 0.9500 expectation), not by a bias.
+
+The test also tests itself. `test_validity_check_catches_the_naive_quantile`
+swaps in `np.quantile(scores, 1-alpha)` at n_cal=20, alpha=0.1. Coverage
+falls to **0.854** against a nominal 0.90, and the check flags it as
+UNDER-coverage. A property test that couldn't catch the off-by-one would
+be decoration.
+
+### Gold labelling
+
+`scripts/gold_labels.py` writes and validates `data/gold/gold_labels_v1.csv`,
+which is committed in git like the manifest (the `.gitignore` exception
+was widened to include it). It holds 175 rows in a fixed seeded order:
+CBRI's 125 cal images first, then its 50 test images. It never includes
+train, because the detector was fit on those. The sheet leaves out the
+GPT-4V bootstrap classes on purpose, so the gold labels can't be anchored
+to them, which would inflate the Week 7 kappa. `status` re-checks every
+row's content hash against the manifest. `scripts/label_gold.py` is a
+small Tk window for the actual labelling: one image at a time, class
+checkboxes, every save written straight to the sheet.
+
+**Gold-label count: 71 / 60 target** (rows 1-71, all from the cal split,
+labeller RT, `status` reports no errors). 70 defect-positive, 1 negative.
+Class ticks: crack 45, vegetation 19, corrosion 7, dampness 4.
+
+**First label-noise finding.** These 71 were compared against the
+Roboflow/GPT-4V labels only after labelling was finished:
+
+| | count |
+|---|---|
+| gold and bootstrap agree on defect yes/no | 37 |
+| gold says defect, bootstrap has no annotation | 34 |
+| gold says no defect, bootstrap says defect | 0 |
+
+The disagreement runs entirely one way. Bootstrap "negatives" are mostly
+images that were never annotated, not images that show no defect. Row 2
+is a clear case: its source filename is German for "young saplings
+sprouting from a concrete wall", gold says vegetation, and the bootstrap
+has no annotation. Consequences:
+
+- Week 1's n_neg = 536 is very likely inflated, and n_pos = 982 is an
+  undercount. Both came from bootstrap annotations, not from looking at
+  the images.
+- Calibrating on bootstrap labels would score real defects as negatives,
+  which corrupts the missed-defect guarantee without any visible sign.
+  This is the concrete case for calibrating on gold only.
+- It is the opening data point for the Week 7 kappa / label-noise study.
+  With only 1 gold negative so far, kappa on this sample isn't meaningful
+  yet. A 48% one-way miss rate on the bootstrap's negatives is the number
+  to carry forward.
+
+**Problem found, not resolved:** CBRI's non-train pool is only 175 images
+(125 cal + 50 test). The blueprint's gold target is 300-500, and using
+only the cal split as the calibration anchor caps n_cal at 125. That's
+far below the 982-n_pos figure the epsilon-range analysis assumed. Either
+some CBRI train images move to gold/cal (this needs a v2 manifest, and
+the detector must not have seen them), or the epsilon floor gets
+recomputed on the real gold pool. This decision has to be made before
+Week 5's real-data validity run.
