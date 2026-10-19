@@ -19,8 +19,9 @@ htmlcov/
 .ipynb_checkpoints/
 
 # DVC -- pointers only, never raw data blobs. Frozen split manifests
-# (data/manifest/) are the one exception -- text provenance meant to be
-# committed and diffed, not a data blob, even though they live under data/.
+# (data/manifest/) and the hand-labelled gold sheet (data/gold/) are the
+# exceptions -- small text provenance meant to be committed and diffed, not
+# data blobs, even though they live under data/.
 /data/**
 !/data/**/
 !/data/**/*.dvc
@@ -28,6 +29,7 @@ htmlcov/
 !/data/.gitkeep
 !/data/README.md
 !/data/manifest/**
+!/data/gold/**
 .dvc/cache
 .dvc/tmp
 
