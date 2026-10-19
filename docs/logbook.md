@@ -457,3 +457,134 @@ some CBRI train images move to gold/cal (this needs a v2 manifest, and
 the detector must not have seen them), or the epsilon floor gets
 recomputed on the real gold pool. This decision has to be made before
 Week 5's real-data validity run.
+
+## Week 4 -- Baselines and Scores S1-S2 (2026-10-20)
+
+### APS and RAPS
+
+`src/certus/conformal/split_cp.py` now has all three split-CP baselines
+(B5-B7) behind one shape: build an (n, n_classes) score matrix, calibrate
+on the true-label column, include a class iff score <= q_hat.
+`aps_score_matrix` / `raps_score_matrix` take an optional per-row uniform
+`u` for the randomised versions. RAPS uses lam=0.1, k_reg=1, fixed in
+`configs/conformal/split.yaml` and not tuned, because tuning them on the
+calibration set would void the guarantee and there is no tuning split yet.
+
+The validity property test now covers four methods (LAC, deterministic
+APS, randomised APS, randomised RAPS) x the same 12 (alpha, n_cal) cells,
+500 trials each. All 48 pass. One wrinkle the test caught: deterministic
+APS gives the lowest-ranked class a score of exactly 1.0 on every row.
+Those tied scores make it over-cover by more than 1/(n+1) at alpha=0.01.
+That's expected behaviour, not a bug, so for deterministic APS only the
+lower bound (the actual guarantee) is checked, and the reason is written
+in the test.
+
+### There is no fine-tuned detector
+
+The blueprint assumes an "existing fine-tuned VLM defect detector". It
+doesn't exist. The source Roboflow Universe project
+(universe.roboflow.com/cbri-pdll5/building-defect-decetation) shows
+**Models: 0**, and a search of the local drives found only checkpoints
+from unrelated projects. Every score is therefore built on off-the-shelf
+models. That's consistent with the blueprint's own "model-agnostic"
+framing, but the paper must say it plainly.
+
+### S1 -- classifier logit (zero-shot CLIP)
+
+First attempt: a logistic-regression head on frozen CLIP ViT-B/32
+features, fit on CBRI train with the bootstrap labels. **5-fold CV AUC
+0.507**, which is chance. That's exactly what the Week 3 gold comparison
+predicted: the bootstrap "negatives" are mostly unannotated defects, so
+those labels carry almost no signal to learn from.
+
+Replaced with zero-shot CLIP. p(defect) is the softmax mass on four defect
+prompts (crack / vegetation / corrosion / dampness) against two clean-wall
+prompts, at CLIP's trained logit scale, and S1 = 1 - p(defect). No
+training labels are used, so nothing can leak calibration data. The prompt
+strings are in `src/certus/scores/s1.py` and are hashed into the model
+version (`clip-vit-b32+zeroshot:379df781c421`).
+
+### S2 -- generative log-probability (Qwen2-VL-2B)
+
+Qwen2-VL-2B-Instruct, bf16 on the RTX 5050 (4.9 GB peak VRAM, ~0.45 s per
+image). S2 = -log p("Yes") as the answer to a fixed question
+(`src/certus/scores/s2.py`), teacher-forced rather than parsed from a free
+generation, so it's deterministic. The config's original wording, "mean
+token log-prob of the generated assertion", was tried first with the full
+sentence "Yes, there is a structural defect." and scored AUC 0.58 on 80
+SDNET2018 cal images. The later tokens are near-certain whatever the image
+shows, and averaging them in drowns the one token that carries
+information. "Yes" alone scored 0.82 on the same 80. That choice was made
+on those 80 images, so the quality number below comes from different ones.
+
+Needed for this: torch 2.2.1 (CPU) -> 2.7.1+cu128 (RTX 50-series needs
+CUDA 12.8), and transformers 4.38.2 -> 4.51.3 (Qwen2-VL support). mypy
+1.8 crashes on transformers 4.51's internals, so transformers is set to
+`follow_imports = "skip"` in pyproject.toml. All 105 tests pass on the
+new stack.
+
+### Score quality on labels we can trust
+
+CBRI can't measure this: its bootstrap labels are the problem, and gold is
+70 positives to 1 negative so far. `scripts/score_sanity.py` uses
+SDNET2018's human cracked/uncracked labels: a balanced 500/500 sample from
+the **train** split (disjoint from the 80 cal images used for the S2
+choice).
+
+| score | AUC | deck | pavement | wall |
+|---|---|---|---|---|
+| S1 zero-shot CLIP | 0.764 | 0.801 | 0.864 | 0.706 |
+| S2 Qwen2-VL "Yes" | 0.775 | 0.791 | 0.843 | 0.773 |
+
+Both scores carry real signal with no task training at all, and neither
+is good. That's fine for conformal validity, which holds for any score,
+but it will show up as large sets and a high human-review fraction. Walls,
+the subject closest to CBRI's, are S1's weakest category.
+
+### Score cache
+
+`src/certus/data/store.py`: SQLite `scores` table keyed by (dataset,
+relpath, score_id, model_version), at `data/cache/certus.sqlite` (local
+cache, regenerable, not in git). Populated:
+
+| dataset | score | model_version | rows |
+|---|---|---|---|
+| cbri | s1 | clip-vit-b32+zeroshot:379df781c421 | 1518 |
+| cbri | s2 | qwen2-vl-2b+assert:5c1c607f66ce | 1518 |
+| sdnet2018 | s1 | clip-vit-b32+zeroshot:379df781c421 | 1000 |
+| sdnet2018 | s2 | qwen2-vl-2b+assert:5c1c607f66ce | 1000 |
+| cbri | s1 | clip-vit-b32+logreg:3e9f71733d6f | 1518 (superseded, kept for the record) |
+
+Sample (S1 / S2 for `valid/000140_jpg.rf.6fcc...`): 0.105 / 0.917.
+`read_scores` refuses to return a partial vector, because silently
+dropping rows would shrink n_cal.
+
+### Three split-CP variants on real data
+
+`scripts/run_split_cp.py`: S1 as a 2-class probability, calibrated on a
+balanced 1000-image SDNET2018 cal sample, evaluated on 1000 test images,
+alpha = 0.1:
+
+| method | q_hat | coverage | mean set size | singleton fraction |
+|---|---|---|---|---|
+| LAC | 0.735 | 0.914 | 1.50 | 0.50 |
+| APS (randomised) | 0.927 | 0.922 | 1.66 | 0.34 |
+| RAPS (randomised) | 1.027 | 0.925 | 1.66 | 0.34 |
+
+All three hold coverage >= 0.90 on real, human-labelled images. With a
+weak 2-class score, half the sets are {crack, no crack}, which in triage
+terms means "send to a human". Better scores are where efficiency comes
+from, and that's what E2 (Week 8) is for.
+
+### Gold labelling
+
+**71 / 130** (unchanged since Week 3). The 59 more images needed this week
+are hand work: `python scripts/label_gold.py --labeller RT`.
+
+### Open decisions carried forward
+
+- Gold pool size (from Week 3): CBRI has only 175 non-train images, and
+  the blueprint wants 300-500.
+- The primary calibration engine was meant to sit on CBRI. With CBRI's
+  labels this noisy, SDNET2018 (human labels, 56k images) may need to
+  carry more of the headline numbers than planned.
