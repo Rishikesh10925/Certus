@@ -1,8 +1,12 @@
-# S2 -- Generative log-probability. Negative mean token log-probability of
-# the VLM's generated defect assertion. Sensitive to prompt phrasing -- the
-# exact prompt string must be fixed and reported verbatim in the paper.
+# S2 -- Generative log-probability. Negative mean token log-probability that
+# the generative VLM (Qwen2-VL-2B-Instruct, off the shelf) answers a fixed
+# question with the single-token assertion "Yes",
+# teacher-forced rather than parsed from a free generation. Sensitive to
+# phrasing -- the exact strings live in src/certus/scores/s2.py, are hashed
+# into the model version, and are reported verbatim in the paper.
 # See roadmap 3.3.
 id: s2
 name: generative_logprob
-prompt_template: null  # freeze this in Week 4 and never change it silently
+model: Qwen/Qwen2-VL-2B-Instruct
+prompt_template: src/certus/scores/s2.py  # QUESTION + ASSERTION, frozen in Week 4
 params: {}

@@ -80,3 +80,4 @@ def _load_builtin_scores() -> None:
     # Imported for the @register side effect; deferred so importing the
     # registry doesn't pull in torch/transformers.
     import certus.scores.s1  # noqa: F401
+    import certus.scores.s2  # noqa: F401
