@@ -129,3 +129,24 @@ def freeze_manifest(
         encoding="utf-8",
     )
     return overall_hash
+
+
+def read_manifest(manifest_path: Path, dataset: str | None = None) -> list[ImageRecord]:
+    """Reads a frozen manifest back into ImageRecords (optionally one
+    dataset only). Every experiment gets its splits from here, never by
+    re-deriving them."""
+    with manifest_path.open(newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    return [
+        ImageRecord(
+            dataset=row["dataset"],
+            relpath=row["relpath"],
+            site_id=row["site_id"],
+            camera_id=row["camera_id"] or None,
+            split=row["split"],
+            defect_positive=row["defect_positive"] == "True",
+            classes=tuple(c for c in row["classes"].split(",") if c),
+        )
+        for row in rows
+        if dataset is None or row["dataset"] == dataset
+    ]
