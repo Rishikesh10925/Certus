@@ -26,12 +26,12 @@ DEFAULT_MODEL_NAME = "openai/clip-vit-base-patch32"
 
 
 class FrozenVLM:
-    """Frozen CLIP vision encoder. No gradients, eval mode, CPU by default."""
+    """Frozen CLIP encoder. No gradients, eval mode, GPU when available."""
 
-    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, device: str = "cpu") -> None:
-        self.device = device
+    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, device: str | None = None) -> None:
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.processor = CLIPProcessor.from_pretrained(model_name)
-        self.model = CLIPModel.from_pretrained(model_name).to(device).eval()
+        self.model = CLIPModel.from_pretrained(model_name).to(self.device).eval()
 
     @torch.no_grad()
     def image_features(
@@ -47,3 +47,13 @@ class FrozenVLM:
             batch_features = batch_features / batch_features.norm(dim=-1, keepdim=True)
             chunks.append(batch_features.cpu().numpy())
         return np.concatenate(chunks, axis=0)
+
+    @torch.no_grad()
+    def text_features(self, texts: list[str]) -> npt.NDArray[np.float32]:
+        """L2-normalised text embeddings, shape (len(texts), d), same space
+        as `image_features` -- for zero-shot scoring."""
+        inputs = self.processor(text=texts, return_tensors="pt", padding=True).to(self.device)
+        features = self.model.get_text_features(**inputs)
+        features = features / features.norm(dim=-1, keepdim=True)
+        out: npt.NDArray[np.float32] = features.cpu().numpy()
+        return out

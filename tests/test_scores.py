@@ -11,6 +11,7 @@ import pytest
 from certus.data.loaders import ImageRecord
 from certus.data.store import connect, model_versions, read_scores, write_scores
 from certus.models.heads import fit_linear_head
+from certus.scores import s1
 from certus.scores.registry import (
     ScoreContext,
     ScoreResult,
@@ -62,37 +63,49 @@ def test_fit_guard_allows_train_and_tune() -> None:
     check_fit_splits(["train", "tune", "train"])
 
 
-def test_s1_scores_are_oriented_high_for_no_defect(tmp_path: Path) -> None:
-    records, feats = _records_and_features()
+def _s1_ctx(tmp_path: Path, records: list[ImageRecord], feats: np.ndarray) -> ScoreContext:
+    """Pre-fills both caches so S1 runs without loading CLIP: image
+    features from `feats`, and text features where every defect prompt
+    points along +x0 and every clean prompt along -x0."""
+    feats = feats / np.linalg.norm(feats, axis=1, keepdims=True)
     cache = tmp_path / "features" / "cbri_clip-vit-b32_by_relpath.npz"
     cache.parent.mkdir(parents=True)
     np.savez(cache, relpaths=np.array([r.relpath for r in records]), features=feats)
+    text = np.zeros((len(s1.DEFECT_PROMPTS) + len(s1.CLEAN_PROMPTS), feats.shape[1]), np.float32)
+    text[: len(s1.DEFECT_PROMPTS), 0] = 1.0
+    text[len(s1.DEFECT_PROMPTS) :, 0] = -1.0
+    np.save(s1._text_cache_path(tmp_path), text)
+    return ScoreContext({"cbri": tmp_path}, tmp_path)
 
-    result = get_score("s1")(records, ScoreContext({"cbri": tmp_path}, tmp_path))
+
+def test_s1_scores_are_oriented_high_for_no_defect(tmp_path: Path) -> None:
+    records, feats = _records_and_features()
+    result = get_score("s1")(records, _s1_ctx(tmp_path, records, feats))
     assert result.values.shape == (len(records),)
     assert np.all((result.values >= 0) & (result.values <= 1))
     pos = np.array([r.defect_positive for r in records])
     assert result.values[~pos].mean() > result.values[pos].mean() + 0.5
-    assert result.model_version.startswith("clip-vit-b32+logreg:")
+    assert result.model_version == f"clip-vit-b32+zeroshot:{s1.prompt_hash()}"
 
 
-def test_s1_head_ignores_calibration_rows(tmp_path: Path) -> None:
-    """Flipping every cal/test label must not change the fitted head."""
+def test_s1_never_reads_labels(tmp_path: Path) -> None:
+    """Zero-shot: flipping every label, any split, must not move a score."""
     records, feats = _records_and_features()
-    cache = tmp_path / "features" / "cbri_clip-vit-b32_by_relpath.npz"
-    cache.parent.mkdir(parents=True)
-    np.savez(cache, relpaths=np.array([r.relpath for r in records]), features=feats)
-    ctx = ScoreContext({"cbri": tmp_path}, tmp_path)
-
+    ctx = _s1_ctx(tmp_path, records, feats)
     flipped = [
-        r
-        if r.split == "train"
-        else ImageRecord(**{**r.__dict__, "defect_positive": not r.defect_positive})
-        for r in records
+        ImageRecord(**{**r.__dict__, "defect_positive": not r.defect_positive}) for r in records
     ]
-    a, b = get_score("s1")(records, ctx), get_score("s1")(flipped, ctx)
-    assert a.model_version == b.model_version
-    np.testing.assert_array_equal(a.values, b.values)
+    np.testing.assert_array_equal(
+        get_score("s1")(records, ctx).values, get_score("s1")(flipped, ctx).values
+    )
+
+
+def test_zero_shot_defect_prob_is_mass_on_defect_prompts() -> None:
+    img = np.array([[1.0, 0.0]], dtype=np.float32)
+    text = np.array([[1.0, 0.0], [0.0, 1.0], [0.0, 1.0]], dtype=np.float32)
+    # logits 100, 0, 0 -> nearly all mass on prompt 0
+    assert s1.zero_shot_defect_prob(img, text, n_defect=1)[0] > 0.999
+    assert s1.zero_shot_defect_prob(img, text, n_defect=0)[0] == 0.0
 
 
 def test_scores_table_round_trip(tmp_path: Path) -> None:
