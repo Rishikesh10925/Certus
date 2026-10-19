@@ -1,7 +1,10 @@
-# S1 -- Classifier logit. 1 - softmax probability of the defect class from a
-# linear head on pooled visual features. Solid baseline, fast; requires
-# training a small head (src/certus/models/heads.py). See roadmap 3.3.
+# S1 -- Classifier logit. 1 - p(defect), with p(defect) the zero-shot CLIP
+# softmax mass on the defect prompts vs. the no-defect prompts. Zero-shot,
+# not a trained head: there is no fine-tuned CBRI detector, and a head fit
+# on the bootstrapped labels was at chance (Week 4 logbook). The prompt
+# strings live in src/certus/scores/s1.py, are hashed into the model
+# version, and must be reported verbatim. See roadmap 3.3.
 id: s1
 name: classifier_logit
-requires_head: true
+requires_head: false
 params: {}
