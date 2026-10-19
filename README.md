@@ -5,7 +5,7 @@ Distribution-free risk guarantees for automated visual inspection: a conformal r
 [![CI](https://github.com/Rishikesh10925/Certus/actions/workflows/ci.yml/badge.svg)](https://github.com/Rishikesh10925/Certus/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
 
-> **Status: Phase 1 — Conformal core (Week 3 of 18).** The corrected conformal quantile and split CP with LAC are implemented and checked by a 500-trial validity property test on every push. Scoring, risk control, and shift correction are not implemented yet. See [`docs/logbook.md`](docs/logbook.md) for the running record of what's actually been done, week by week.
+> **Status: Phase 1 — Conformal core (Week 4 of 18).** Split CP (LAC, APS, RAPS) is implemented and checked by a 500-trial validity property test on every push. Scores S1 (zero-shot CLIP) and S2 (Qwen2-VL log-prob) are computed and cached. Risk control and shift correction are not implemented yet. See [`docs/logbook.md`](docs/logbook.md) for the running record of what's actually been done, week by week.
 
 ---
 
