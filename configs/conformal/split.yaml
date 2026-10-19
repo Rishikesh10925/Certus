@@ -5,3 +5,8 @@
 method: split_cp
 variant: lac  # lac | aps | raps
 alpha: 0.10
+randomized: true  # aps/raps only: one uniform per row, same convention at cal and test
+# RAPS regularisation. Fixed, not tuned: tuning them on the calibration set
+# would void the guarantee, and there's no separate tuning split yet.
+raps_lam: 0.1
+raps_k_reg: 1
