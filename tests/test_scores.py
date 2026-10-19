@@ -36,7 +36,7 @@ def _records_and_features(n: int = 60) -> tuple[list[ImageRecord], np.ndarray]:
 
 
 def test_builtin_scores_are_registered() -> None:
-    assert "s1" in available_scores()
+    assert {"s1", "s2"} <= set(available_scores())
 
 
 def test_register_rejects_duplicates_and_unknown_ids_raise() -> None:
@@ -122,3 +122,28 @@ def test_scores_table_round_trip(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="non-finite"):
         write_scores(conn, records[:1], "s1", "v1", np.array([np.nan]))
     conn.close()
+
+
+def test_s2_negates_assertion_logprob_and_tags_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S2 wiring without the 4.5 GB model: a fake VLM returns fixed
+    log-probs, and S2 must negate them, keep order, and pin the prompt."""
+    from certus.models import generative
+    from certus.scores import s2
+
+    seen: dict[str, object] = {}
+
+    class FakeVLM:
+        def assertion_logprob(self, paths: list[Path], question: str, assertion: str) -> np.ndarray:
+            seen.update(paths=paths, question=question, assertion=assertion)
+            return -np.arange(len(paths), dtype=np.float64)
+
+    monkeypatch.setattr(generative, "GenerativeVLM", FakeVLM)
+    records, _ = _records_and_features(4)
+    result = get_score("s2")(records, ScoreContext({"cbri": tmp_path}, tmp_path))
+
+    np.testing.assert_array_equal(result.values, [0.0, 1.0, 2.0, 3.0])
+    assert seen["paths"] == [tmp_path / r.relpath for r in records]
+    assert seen["question"] == s2.QUESTION and seen["assertion"] == s2.ASSERTION
+    assert result.model_version == f"qwen2-vl-2b+assert:{s2.prompt_hash()}"
