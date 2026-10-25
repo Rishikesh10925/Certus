@@ -588,3 +588,129 @@ are hand work: `python scripts/label_gold.py --labeller RT`.
 - The primary calibration engine was meant to sit on CBRI. With CBRI's
   labels this noisy, SDNET2018 (human labels, 56k images) may need to
   carry more of the headline numbers than planned.
+
+### Week 4 close-out: gold labelling complete (2026-10-25)
+
+**Gold-label count: 175 / 175**, the entire CBRI non-train pool (125 cal
++ 50 test), labeller RT, `status` reports no errors. There is nothing left
+in CBRI to hand-label without touching train, so this is the ceiling, not
+a milestone on the way to the blueprint's 300.
+
+| | count |
+|---|---|
+| gold defect-positive | 172 (98.3%) |
+| gold defect-negative | 3 |
+| bootstrap said negative | 74, of which gold says defect: **73** |
+| gold says negative, bootstrap says defect | 2 (both in test) |
+
+Class ticks: crack 104, vegetation 50, corrosion 17, dampness 8.
+
+What this settles:
+- The Week 3 finding holds at full size. Bootstrap "negatives" are
+  unannotated defect images 73 times out of 74.
+- **CBRI is effectively an all-defect dataset.** It can measure missed
+  defects, but it has almost no clean images to auto-clear, so the triage
+  efficiency question (human-review fraction) can't be answered on CBRI.
+- Caveat: ~100 of these 175 labels were entered in a few minutes. Before
+  any headline number rests on them, a blind re-label of a random 20 is
+  worth doing to measure intra-labeller agreement.
+
+## Week 5 -- Validity on Real Data (2026-10-25)
+
+### Evaluation harness
+
+`src/certus/eval/protocol.py`: `run_protocol` draws a fresh random cal/test
+partition of a labelled pool per seed (seed = (base_seed, i), so any seed
+replays alone), runs one prediction-set method, and records coverage, mean
+set size, and singleton fraction. `summarize` gives the mean, SD, and a 95%
+percentile-bootstrap CI over seeds. Six methods share one interface: split
+CP (LAC, APS, RAPS) and baselines B1-B3.
+
+### Baselines B1-B3
+
+`src/certus/baselines.py`, all as prediction-set methods so they sit on
+F2's axes:
+
+- **B1 raw softmax:** take classes until raw mass >= 1-alpha.
+- **B2 temperature scaling:** NLL-fit temperature, then B1.
+- **B3 selective classification:** answer the top class above a
+  max-prob threshold, abstain (full set) below it. The threshold is the
+  most permissive one whose *empirical* miscoverage on the tuning rows is
+  <= alpha, which is plug-in with no +1 correction.
+
+B2/B3 fit on the same rows conformal calibrates on (same data budget),
+passed to the fit_* guard as "tune".
+
+### E1 and Figure F2
+
+`scripts/run_e1.py` (`make e1`), 100 seeds per cell, alpha in {0.01, 0.05,
+0.10, 0.20} x n_cal in {50, 200, 1000} x scores {S1, S2} x two pools:
+
+- **SDNET2018:** a seeded 3000-image sample of its cal split, human labels,
+  457 cracked.
+- **CBRI:** all 1518 images, bootstrap labels, 982 positive. Validity is
+  a property of the procedure, so it must hold against *any* fixed labels,
+  including noisy ones. This pool tests correctness, not detection.
+
+Provenance (manifest hash, score model versions, pool sizes, n_pos) is in
+`results/e1/e1_validity.json`. Per-seed rows are in
+`results/e1/e1_validity_seeds.csv.gz`. Figures:
+`paper/figures/F2_validity_s1.png`, `F2_validity_s2.png`.
+
+### Week 5 gate: PASSED
+
+**144 / 144 conformal cells within +/-2 points of nominal** (3 methods x
+4 alphas x 3 n_cal x 2 scores x 2 pools). None of the four usual failure
+causes (off-by-one, sign error, split leakage, calibration-set fitting)
+needed hunting.
+
+| method | worst under-coverage | worst over-coverage | cells outside +/-2 pts |
+|---|---|---|---|
+| Split CP LAC | -0.49 | +1.00 | **0 / 48** |
+| Split CP APS | -0.58 | +1.40 | **0 / 48** |
+| Split CP RAPS | -0.58 | +1.29 | **0 / 48** |
+| B1 raw softmax | -7.74 | +17.13 | 39 / 48 |
+| B2 temperature | +0.40 | +20.00 | 36 / 48 |
+| B3 selective | -1.67 | +8.01 | 6 / 48 |
+
+(points; mean coverage minus 1-alpha)
+
+At alpha = 0.10, n_cal = 1000:
+
+| pool | score | LAC coverage | LAC set size | B1 coverage | B2 coverage |
+|---|---|---|---|---|---|
+| SDNET2018 | S1 | 0.899 +/- 0.012 | 1.20 | 0.994 | 0.976 |
+| SDNET2018 | S2 | 0.899 +/- 0.012 | 1.07 | 0.992 | 0.958 |
+| CBRI | S1 | 0.902 +/- 0.016 | 1.74 | **0.824** | 1.000 |
+| CBRI | S2 | 0.899 +/- 0.017 | 1.83 | 0.994 | 1.000 |
+
+What the baselines show:
+- The raw softmax (B1) is wrong in *both* directions depending on the
+  data. On SDNET2018 it over-covers (+17 pts at worst) with near-full sets.
+  On CBRI with S1 it under-covers by up to 7.7 pts. Nobody using it could
+  know which way it will fail.
+- Temperature scaling (B2) doesn't fix that, because it only moves the
+  error.
+- B3, the plug-in threshold, comes close at n_cal=1000 (it's split CP
+  without the +1), but drifts at small n: 6 cells out of tolerance,
+  worst -1.67 pts.
+- Split CP is the only method on the diagonal everywhere, which is the
+  entire point of F2.
+- S2 gives tighter sets than S1 on SDNET2018 (1.07 vs 1.20 at alpha =
+  0.1), the first hint for the E2 score comparison.
+
+### Not done this week
+
+- Weights & Biases: still not initialised (it needs your personal API
+  key). Runs are logged as JSON + per-seed CSV with full provenance
+  instead, which covers what the blueprint asks every run to log.
+- Gold labelling to 200: impossible on CBRI (the ceiling is 175, see
+  above).
+
+### Decision needed: primary dataset
+
+Recommended: **SDNET2018 becomes the primary calibration dataset** (human
+labels, 56k images, 15% cracked, so there's a real auto-clear question),
+and **CBRI becomes a held-out target site** for the shift study, using the
+175 gold labels as its trustworthy evaluation set. Recorded as a
+recommendation only, until the decision is made.
