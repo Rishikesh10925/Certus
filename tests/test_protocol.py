@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -87,3 +89,24 @@ def test_raw_softmax_baseline_undercovers_an_overconfident_model() -> None:
     s = summarize(run_protocol(probs, labels, "b1_softmax", 0.1, n_cal=500, n_seeds=20))
     assert s["coverage_mean"] < 0.85
     assert set(METHODS) >= {"b1_softmax", "b2_temperature", "b3_selective"}
+
+
+def test_figure_f2_renders(tmp_path: Path) -> None:
+    from certus.viz.figures import figure_f2
+
+    rows = [
+        {
+            "dataset": "d",
+            "score": "s1",
+            "method": m,
+            "alpha": a,
+            "n_cal": 50,
+            "coverage_mean": 1 - a,
+            "coverage_sd": 0.01,
+        }
+        for m in ("lac", "b1_softmax")
+        for a in (0.1, 0.2)
+    ]
+    out = tmp_path / "f2.png"
+    figure_f2(rows, "s1", ["d"], [50], ["lac", "b1_softmax"], out)
+    assert out.stat().st_size > 1000

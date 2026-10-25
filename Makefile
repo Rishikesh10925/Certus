@@ -1,4 +1,4 @@
-.PHONY: setup data calibrate loso figures paper clean
+.PHONY: setup data calibrate e1 loso figures paper clean
 
 PYTHON ?= python
 DATA_PATH ?=
@@ -20,6 +20,9 @@ data:
 
 calibrate:
 	@echo "calibrate: not implemented yet -- Phase 1-2, roadmap Part VI Weeks 3-8"
+
+e1:
+	$(PYTHON) scripts/run_e1.py
 
 loso:
 	@echo "loso: not implemented yet -- Phase 3, roadmap Part VI Weeks 9-12"
