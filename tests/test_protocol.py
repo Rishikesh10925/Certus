@@ -110,3 +110,18 @@ def test_figure_f2_renders(tmp_path: Path) -> None:
     out = tmp_path / "f2.png"
     figure_f2(rows, "s1", ["d"], [50], ["lac", "b1_softmax"], out)
     assert out.stat().st_size > 1000
+
+
+@pytest.mark.parametrize("conditional", [False, True])
+def test_crc_protocol_controls_risk_and_reports_hrf(conditional: bool) -> None:
+    from certus.eval.protocol import run_crc_protocol, summarize_crc
+
+    rng = np.random.default_rng(3)
+    y = rng.random(3000) < 0.2
+    s = np.where(y, rng.normal(0.3, 0.2, 3000), rng.normal(0.7, 0.2, 3000))
+    res = run_crc_protocol(s, y, epsilon=0.05, n_cal=2000, conditional=conditional, n_seeds=60)
+    summ = summarize_crc(res)
+    assert summ["risk_mean"] <= 0.05 + 4 * summ["risk_se"]
+    assert 0.0 < summ["hrf_mean"] < 1.0
+    assert summ["lam_finite_frac"] == 1.0
+    assert res == run_crc_protocol(s, y, 0.05, 2000, conditional, n_seeds=60)
