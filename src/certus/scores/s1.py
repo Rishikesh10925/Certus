@@ -107,6 +107,11 @@ def zero_shot_defect_prob(
     return probs
 
 
+def to_defect_prob(values: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Inverts the score back to p(defect) (S1 = 1 - p)."""
+    return 1.0 - values
+
+
 @register("s1")
 def s1_classifier_logit(records: list[ImageRecord], ctx: ScoreContext) -> ScoreResult:
     p_defect = zero_shot_defect_prob(

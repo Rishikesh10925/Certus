@@ -67,6 +67,17 @@ def available_scores() -> list[str]:
     return sorted(_REGISTRY)
 
 
+def defect_probability(score_id: str, values: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Maps a score back to a p(defect) in [0, 1], for methods that need a
+    2-class probability vector (split CP, B1-B3)."""
+    import importlib
+
+    _load_builtin_scores()
+    module = importlib.import_module(f"certus.scores.{score_id}")
+    probs: NDArray[np.float64] = np.clip(module.to_defect_prob(values), 0.0, 1.0)
+    return probs
+
+
 def check_fit_splits(splits: Iterable[str]) -> None:
     """The guard every fit_* function calls first: fitting anything on
     calibration or test rows voids the conformal guarantee silently, so it

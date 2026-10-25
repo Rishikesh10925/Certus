@@ -80,7 +80,7 @@ def main() -> int:
         if mask.any():
             print(
                 f"  {split:5s} n={mask.sum():4d}  mean score | defect={v[mask & pos].mean():.3f}"
-                f"  | no defect={v[mask & ~pos].mean():.3f}  (bootstrap labels)"
+                f"  | no defect={v[mask & ~pos].mean():.3f}  (manifest labels)"
             )
     return 0
 
