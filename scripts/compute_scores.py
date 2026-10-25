@@ -9,6 +9,10 @@ Usage:
         --manifest data/manifest/splits_v1.csv \
         --cbri-root data/raw/cbri --cache-dir data/cache \
         --db data/cache/certus.sqlite
+
+    # E1's SDNET2018 pool: a seeded 3000-image sample of the cal split
+    python scripts/compute_scores.py --score s2 --dataset sdnet2018 \
+        --manifest data/manifest/splits_v1.csv --split cal --sample 3000
 """
 
 from __future__ import annotations
@@ -19,7 +23,7 @@ from pathlib import Path
 import numpy as np
 
 from certus.data.loaders import load_cbri_images
-from certus.data.splits import read_manifest
+from certus.data.splits import read_manifest, sample_records
 from certus.data.store import connect, write_scores
 from certus.scores.registry import ScoreContext, get_score
 
@@ -49,10 +53,15 @@ def main() -> int:
     parser.add_argument("--secondary-root", type=Path, default=Path("data/raw/sdnet2018"))
     parser.add_argument("--cache-dir", type=Path, default=Path("data/cache"))
     parser.add_argument("--db", type=Path, default=Path("data/cache/certus.sqlite"))
+    parser.add_argument("--split", default=None, help="only this split")
+    parser.add_argument("--sample", type=int, default=None, help="seeded subset of this size")
+    parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     _migrate_week2_cbri_cache(args.cbri_root, args.cache_dir)
-    records = read_manifest(args.manifest, dataset=args.dataset)
+    records = sample_records(
+        read_manifest(args.manifest, dataset=args.dataset), args.sample, args.seed, args.split
+    )
     ctx = ScoreContext(
         image_roots={"cbri": args.cbri_root, "sdnet2018": args.secondary_root},
         cache_dir=args.cache_dir,

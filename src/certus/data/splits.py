@@ -19,6 +19,7 @@ import csv
 import hashlib
 import json
 import random
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 
@@ -150,3 +151,17 @@ def read_manifest(manifest_path: Path, dataset: str | None = None) -> list[Image
         for row in rows
         if dataset is None or row["dataset"] == dataset
     ]
+
+
+def sample_records(
+    records: Sequence[ImageRecord], n: int | None, seed: int, split: str | None = None
+) -> list[ImageRecord]:
+    """A fixed, seeded subset (optionally of one split) -- how an
+    experiment's image pool is defined, so the score cache and the
+    experiment pick exactly the same images. n=None keeps all of them."""
+    pool = sorted(
+        (r for r in records if split is None or r.split == split), key=lambda r: r.relpath
+    )
+    if n is None or n >= len(pool):
+        return pool
+    return sorted(random.Random(seed).sample(pool, n), key=lambda r: r.relpath)
