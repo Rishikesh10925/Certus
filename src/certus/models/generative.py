@@ -69,3 +69,24 @@ class GenerativeVLM:
             logp = torch.log_softmax(logits, dim=-1).gather(-1, ids[:, -n:, None]).squeeze(-1)
             out.extend(logp.mean(dim=1).cpu().tolist())
         return np.array(out, dtype=np.float64)
+
+    @torch.no_grad()
+    def generate(
+        self, image_paths: list[Path], question: str, max_new_tokens: int = 8, batch_size: int = 8
+    ) -> list[str]:
+        """Greedy answers to `question` about each image (for S3)."""
+        messages = [
+            {"role": "user", "content": [{"type": "image"}, {"type": "text", "text": question}]}
+        ]
+        prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
+        out: list[str] = []
+        for i in range(0, len(image_paths), batch_size):
+            images = [Image.open(p).convert("RGB") for p in image_paths[i : i + batch_size]]
+            inputs = self.processor(
+                text=[prompt] * len(images), images=images, return_tensors="pt", padding=True
+            ).to(self.device)
+            gen = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+            new = gen[:, inputs["input_ids"].shape[1] :]
+            answers: list[str] = self.processor.batch_decode(new, skip_special_tokens=True)
+            out.extend(answers)
+        return out
