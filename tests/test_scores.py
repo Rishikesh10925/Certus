@@ -154,3 +154,40 @@ def test_defect_probability_inverts_each_score() -> None:
 
     np.testing.assert_allclose(defect_probability("s1", np.array([0.0, 0.25, 1.0])), [1, 0.75, 0])
     np.testing.assert_allclose(defect_probability("s2", -np.log([0.9, 0.1])), [0.9, 0.1])
+
+
+@pytest.mark.parametrize(
+    ("answer", "expected"),
+    [("85", 85.0), (" 70.5%", 70.5), ("I'd say 40 out of 100", 40.0), ("150", None), ("yes", None)],
+)
+def test_s3_parses_verbal_confidence(answer: str, expected: float | None) -> None:
+    from certus.scores.s3 import parse_confidence
+
+    assert parse_confidence(answer) == expected
+
+
+def test_s3_and_s4_wiring_with_fake_models(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from certus.models import detector, generative
+    from certus.scores import s3, s4
+
+    class FakeVLM:
+        def generate(self, paths: list[Path], question: str) -> list[str]:
+            assert question == s3.QUESTION
+            return ["90", "no idea", "10", "100"][: len(paths)]
+
+    class FakeDetector:
+        def max_box_confidence(self, paths: list[Path], queries: list[str]) -> np.ndarray:
+            assert queries == list(s4.QUERIES)
+            return np.linspace(0, 1, len(paths))
+
+    monkeypatch.setattr(generative, "GenerativeVLM", FakeVLM)
+    monkeypatch.setattr(detector, "OpenVocabDetector", FakeDetector)
+    records, _ = _records_and_features(4)
+    ctx = ScoreContext({"cbri": tmp_path}, tmp_path)
+
+    r3 = get_score("s3")(records, ctx)
+    np.testing.assert_allclose(r3.values, [0.1, 0.5, 0.9, 0.0])
+    assert r3.notes == {"unparseable": 1}
+    r4 = get_score("s4")(records, ctx)
+    np.testing.assert_allclose(r4.values, [1.0, 2 / 3, 1 / 3, 0.0])
+    assert {"s3", "s4"} <= set(available_scores())
