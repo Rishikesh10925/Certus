@@ -19,6 +19,9 @@ from __future__ import annotations
 
 import hashlib
 
+import numpy as np
+from numpy.typing import NDArray
+
 from certus.data.loaders import ImageRecord
 from certus.scores.registry import ScoreContext, ScoreResult, register
 
@@ -32,6 +35,13 @@ MODEL_TAG = "qwen2-vl-2b"
 
 def prompt_hash() -> str:
     return hashlib.sha256(f"{QUESTION}\n--\n{ASSERTION}".encode()).hexdigest()[:12]
+
+
+def to_defect_prob(values: NDArray[np.float64]) -> NDArray[np.float64]:
+    """p("Yes") back from S2 = -log p("Yes"). Not a calibrated p(defect),
+    just the model's own answer probability -- fine as a conformal score
+    input, which needs no calibration."""
+    return np.exp(-values)
 
 
 @register("s2")

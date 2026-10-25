@@ -147,3 +147,10 @@ def test_s2_negates_assertion_logprob_and_tags_prompt(
     assert seen["paths"] == [tmp_path / r.relpath for r in records]
     assert seen["question"] == s2.QUESTION and seen["assertion"] == s2.ASSERTION
     assert result.model_version == f"qwen2-vl-2b+assert:{s2.prompt_hash()}"
+
+
+def test_defect_probability_inverts_each_score() -> None:
+    from certus.scores.registry import defect_probability
+
+    np.testing.assert_allclose(defect_probability("s1", np.array([0.0, 0.25, 1.0])), [1, 0.75, 0])
+    np.testing.assert_allclose(defect_probability("s2", -np.log([0.9, 0.1])), [0.9, 0.1])
