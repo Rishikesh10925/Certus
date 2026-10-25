@@ -151,3 +151,69 @@ def summarize(results: list[SeedResult]) -> dict[str, float]:
 
 def seed_rows(results: list[SeedResult]) -> list[dict[str, float]]:
     return [asdict(r) for r in results]
+
+
+@dataclass(frozen=True)
+class CrcSeedResult:
+    seed: int
+    lam: float
+    risk: float  # realised test loss: joint miss rate, or miss rate among defects
+    hrf: float  # human-review fraction: share of test images NOT auto-cleared
+    miss_rate_among_defects: float
+
+
+def run_crc_protocol(
+    scores: NDArray[np.float64],
+    labels: NDArray[np.bool_],
+    epsilon: float,
+    n_cal: int,
+    conditional: bool,
+    n_seeds: int = 100,
+    base_seed: int = 0,
+) -> list[CrcSeedResult]:
+    """CRC over n_seeds random cal/test partitions. conditional=True
+    calibrates on the defect-positive cal rows only, so the guarantee is
+    P(cleared | defect) <= epsilon; otherwise E[1{defect and cleared}]."""
+    from certus.conformal.crc import auto_clear, calibrate_crc
+
+    n = len(labels)
+    if not 0 < n_cal < n:
+        raise ValueError(f"n_cal={n_cal} must leave test rows in a pool of {n}")
+    out = []
+    for s in range(n_seeds):
+        perm = np.random.default_rng([base_seed, s]).permutation(n)
+        cal, test = perm[:n_cal], perm[n_cal:]
+        cal_rows = cal[labels[cal]] if conditional else cal
+        lam = calibrate_crc(scores[cal_rows], labels[cal_rows], epsilon)
+        cleared = auto_clear(scores[test], lam)
+        defects = labels[test]
+        miss_among = float(cleared[defects].mean()) if defects.any() else 0.0
+        out.append(
+            CrcSeedResult(
+                seed=s,
+                lam=lam,
+                risk=miss_among if conditional else float((cleared & defects).mean()),
+                hrf=float(1.0 - cleared.mean()),
+                miss_rate_among_defects=miss_among,
+            )
+        )
+    return out
+
+
+def summarize_crc(results: list[CrcSeedResult]) -> dict[str, float]:
+    risk = np.array([r.risk for r in results])
+    hrf = np.array([r.hrf for r in results])
+    lam = np.array([r.lam for r in results])
+    return {
+        "risk_mean": float(risk.mean()),
+        "risk_sd": float(risk.std(ddof=1)),
+        "risk_se": float(risk.std(ddof=1) / np.sqrt(risk.size)),
+        "hrf_mean": float(hrf.mean()),
+        "hrf_sd": float(hrf.std(ddof=1)),
+        "miss_rate_among_defects_mean": float(
+            np.mean([r.miss_rate_among_defects for r in results])
+        ),
+        "lam_finite_frac": float(np.isfinite(lam).mean()),
+        "lam_median": float(np.median(lam)),
+        "n_seeds": float(risk.size),
+    }
