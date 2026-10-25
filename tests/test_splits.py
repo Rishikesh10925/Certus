@@ -72,3 +72,14 @@ def test_freeze_manifest_hash_is_deterministic_and_changes_with_content(tmp_path
     (dataset_root / "a.jpg").write_bytes(b"different-bytes")
     hash_3 = freeze_manifest(records, {"cbri": dataset_root}, manifest_path)
     assert hash_3 != hash_1
+
+
+def test_sample_records_is_seeded_order_free_and_split_aware() -> None:
+    from certus.data.splits import sample_records
+
+    records = assign_secondary_split(_records(n_pos=50, n_neg=50), seed=0)
+    a = sample_records(records, 10, seed=3, split="cal")
+    assert a == sample_records(list(reversed(records)), 10, seed=3, split="cal")
+    assert len(a) == 10 and all(r.split == "cal" for r in a)
+    assert a != sample_records(records, 10, seed=4, split="cal")
+    assert len(sample_records(records, None, seed=0)) == 100
