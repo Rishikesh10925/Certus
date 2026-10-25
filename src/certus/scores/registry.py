@@ -14,7 +14,7 @@ score is high. S1 = 1 - p(defect) is the reference case.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +37,7 @@ class ScoreContext:
 class ScoreResult:
     values: NDArray[np.float64]  # one per input record, in input order
     model_version: str  # what produced them -- logged with every run
+    notes: dict[str, int] = field(default_factory=dict)  # e.g. S3's unparseable count
 
 
 ScoreFn = Callable[[list[ImageRecord], ScoreContext], ScoreResult]
@@ -92,3 +93,5 @@ def _load_builtin_scores() -> None:
     # registry doesn't pull in torch/transformers.
     import certus.scores.s1  # noqa: F401
     import certus.scores.s2  # noqa: F401
+    import certus.scores.s3  # noqa: F401
+    import certus.scores.s4  # noqa: F401

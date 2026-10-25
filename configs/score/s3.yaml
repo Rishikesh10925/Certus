@@ -1,7 +1,10 @@
-# S3 -- Verbalized confidence. Ask the model for a 0-100 confidence and use
-# 1 - c/100. Expected to be poorly calibrated; included precisely because it
-# is what practitioners actually do without a statistics background
-# (baseline B11). See roadmap 3.3.
+# S3 -- Verbalized confidence. Ask the generative VLM (Qwen2-VL-2B, off the
+# shelf) for a 0-100 confidence c that the photo shows a defect, use
+# 1 - c/100. Unparseable answers -> c = 50, counted and logged. Expected to
+# be poorly calibrated; included precisely because it is what practitioners
+# actually do without a statistics background (baseline B11). The exact
+# question lives in src/certus/scores/s3.py. See roadmap 3.3.
 id: s3
 name: verbalized_confidence
+model: Qwen/Qwen2-VL-2B-Instruct
 params: {}

@@ -73,6 +73,8 @@ def main() -> int:
     conn.close()
 
     print(f"{args.score}@{result.model_version}: cached {len(records)} scores in {args.db}")
+    if result.notes:
+        print(f"  notes: {result.notes}")
     for split in ("train", "cal", "test"):
         mask = np.array([r.split == split for r in records])
         pos = np.array([r.defect_positive for r in records])
