@@ -823,3 +823,103 @@ The plan's "300 total" can't happen: CBRI's non-train pool is 175, and all
 
 - Primary dataset: Weeks 5-6 run on SDNET2018 per the Week 5
   recommendation. Not yet formally confirmed.
+
+## Week 7 -- Learn-then-Test & Label Noise (2026-10-26)
+
+### Learn-then-Test
+
+`src/certus/conformal/ltt.py`. It uses the same loss and decision rule as
+CRC, but a different promise: P(R(lambda_hat) <= epsilon) >= 1 - delta.
+H_lambda: R > epsilon is tested with the Hoeffding-Bentkus p-value. Fixed-
+sequence testing walks from +inf (clear nothing) towards clearing more and
+stops at the first non-rejection. Monotone risk makes that order natural,
+so delta needs no splitting.
+
+Tests (`tests/test_ltt.py`):
+- The p-value behaves as expected.
+- The vectorised and scalar p-values agree.
+- LTT is never less conservative than CRC on the same calibration set.
+- The PAC guarantee holds over 300 synthetic trials, measured against a
+  200k-sample "true" risk.
+
+### CRC vs LTT (delta = 0.05)
+
+SDNET2018 pool, n_cal = 2000, 100 seeds. "Exceed" is the share of
+deployments whose test-set risk came out above epsilon.
+
+| S2, joint | CRC risk | CRC exceed | CRC HRF | LTT risk | LTT exceed | LTT HRF |
+|---|---|---|---|---|---|---|
+| eps 0.10 | 0.101 | 0.53 | 0.07 | 0.087 | 0.09 | 0.11 |
+| eps 0.05 | 0.052 | 0.57 | 0.38 | 0.041 | 0.13 | 0.48 |
+| eps 0.02 | 0.021 | 0.47 | 0.72 | 0.014 | 0.08 | 0.79 |
+| eps 0.01 | 0.010 | 0.42 | 0.84 | 0.005 | 0.05 | 0.90 |
+
+S1 shows the same pattern: CRC exceeds in 38-50% of deployments, LTT in
+4-12%.
+
+**The price of the PAC guarantee is +4 to +10 points of human review**
+(joint). That's what turns "on average across deployments" into "for
+this deployment, with 95% confidence". Under the conditional guarantee
+the cost is +5 to +8 points, on top of an already 73-98% HRF.
+
+LTT's exceed fraction sits a little above delta in some cells (0.13 at
+S2/0.05). The guarantee is on the *true* risk, while "exceed" here is
+measured on a finite 1000-image test set, so test-set noise adds
+apparent violations. The synthetic test with a 200k-sample true risk
+stays within delta.
+
+### Label noise
+
+Code: `src/certus/eval/label_noise.py`, `scripts/run_week7.py`. Results:
+`results/week7/week7.json`. Draft paper section: `paper/label_noise.tex`
+(the week's deliverable).
+
+**kappa (GPT-4V bootstrap vs gold, CBRI, n = 175):**
+
+| label | kappa |
+|---|---|
+| defect / no defect | **-0.007** |
+| crack | 0.160 |
+| vegetation | 0.287 |
+| corrosion | -0.019 |
+| dampness | 0.161 |
+
+That's chance-level agreement on the label that matters, far below the
+risk register's 0.6 line. The failure is one-sided: the bootstrap misses
+42% of gold defects (73/172) and almost never invents one (2/175).
+
+The missed defects are *not* the subtle ones. Their S1/S2 scores match
+the annotated defects (one-sided Mann-Whitney p = 0.71 / 0.90), so the
+misses look random. That turns out to decide everything.
+
+**Guarantee degradation, stated plainly:**
+
+1. **CBRI, real labels.** Calibrate on GPT-4V labels, measure against
+   gold:
+   - **Joint guarantee: realised miss rate 1.6-2.0x the promised bound.**
+     At epsilon = 0.05 it's 0.093 (S1) and **0.101 (S2)**, exceeded in
+     86-92% of deployments. Calibrated on gold it's 0.052.
+   - **Conditional guarantee: survives** (0.042 / 0.052 at epsilon =
+     0.05), because the misses are random.
+2. **SDNET2018, controlled** (hide fraction h of defects in calibration
+   labels only):
+   - **Random hiding at CBRI's h = 0.42:** joint risk 1.7-2.0x epsilon,
+     conditional risk still <= epsilon. This matches CBRI.
+   - **Worst-case hiding** (the most clean-looking defects first): h = 0.10
+     already gives a conditional miss rate of 0.14 at epsilon = 0.05
+     (2.9x). At h = 0.42 it's 0.45, so **nearly half of real defects are
+     auto-cleared under a nominal 5% guarantee**.
+
+Why: a hidden defect looks free to clear, which inflates joint risk by
+~1/(1-h). The conditional guarantee only needs the labelled defects to be
+an exchangeable sample of all defects. Random misses keep that true;
+correlated misses destroy it. **Without a gold set there is no way to
+tell which case you're in.** That's the paper's argument for the gold
+set, now with numbers.
+
+### Still open
+
+- Primary dataset (SDNET2018 + CBRI as target site): Weeks 5-7 run that
+  way. Still not formally confirmed.
+- The intra-labeller check on the gold set (re-label 20 blind) is still
+  worth doing, now that the gold set carries a paper section.
