@@ -170,21 +170,36 @@ def run_crc_protocol(
     conditional: bool,
     n_seeds: int = 100,
     base_seed: int = 0,
+    method: str = "crc",
+    delta: float = 0.05,
+    calibration_labels: NDArray[np.bool_] | None = None,
 ) -> list[CrcSeedResult]:
-    """CRC over n_seeds random cal/test partitions. conditional=True
-    calibrates on the defect-positive cal rows only, so the guarantee is
-    P(cleared | defect) <= epsilon; otherwise E[1{defect and cleared}]."""
+    """Risk control over n_seeds random cal/test partitions.
+
+    conditional=True calibrates on the defect-positive cal rows only, so
+    the guarantee is P(cleared | defect) <= epsilon; otherwise
+    E[1{defect and cleared}]. method="ltt" swaps CRC for Learn-then-Test at
+    level delta. `calibration_labels`, if given, are what calibration sees
+    (e.g. noisy bootstrap labels) while `labels` stay the ground truth the
+    realised risk is measured against -- the label-noise experiment."""
     from certus.conformal.crc import auto_clear, calibrate_crc
+    from certus.conformal.ltt import calibrate_ltt
 
     n = len(labels)
     if not 0 < n_cal < n:
         raise ValueError(f"n_cal={n_cal} must leave test rows in a pool of {n}")
+    cal_y_all = labels if calibration_labels is None else calibration_labels
     out = []
     for s in range(n_seeds):
         perm = np.random.default_rng([base_seed, s]).permutation(n)
         cal, test = perm[:n_cal], perm[n_cal:]
-        cal_rows = cal[labels[cal]] if conditional else cal
-        lam = calibrate_crc(scores[cal_rows], labels[cal_rows], epsilon)
+        cal_rows = cal[cal_y_all[cal]] if conditional else cal
+        if method == "crc":
+            lam = calibrate_crc(scores[cal_rows], cal_y_all[cal_rows], epsilon)
+        elif method == "ltt":
+            lam = calibrate_ltt(scores[cal_rows], cal_y_all[cal_rows], epsilon, delta)
+        else:
+            raise ValueError(f"unknown risk-control method {method!r}")
         cleared = auto_clear(scores[test], lam)
         defects = labels[test]
         miss_among = float(cleared[defects].mean()) if defects.any() else 0.0
@@ -200,7 +215,10 @@ def run_crc_protocol(
     return out
 
 
-def summarize_crc(results: list[CrcSeedResult]) -> dict[str, float]:
+def summarize_crc(results: list[CrcSeedResult], epsilon: float | None = None) -> dict[str, float]:
+    """Mean/SD of realised risk and HRF over seeds. With epsilon, also the
+    share of seeds whose realised test risk exceeded it -- what a single
+    deployment experiences (CRC: ~half, by design; LTT: <= delta-ish)."""
     risk = np.array([r.risk for r in results])
     hrf = np.array([r.hrf for r in results])
     lam = np.array([r.lam for r in results])
@@ -216,4 +234,5 @@ def summarize_crc(results: list[CrcSeedResult]) -> dict[str, float]:
         "lam_finite_frac": float(np.isfinite(lam).mean()),
         "lam_median": float(np.median(lam)),
         "n_seeds": float(risk.size),
+        **({"exceed_frac": float((risk > epsilon).mean())} if epsilon is not None else {}),
     }
