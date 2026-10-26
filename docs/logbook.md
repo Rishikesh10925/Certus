@@ -714,3 +714,112 @@ labels, 56k images, 15% cracked, so there's a real auto-clear question),
 and **CBRI becomes a held-out target site** for the shift study, using the
 175 gold labels as its trustworthy evaluation set. Recorded as a
 recommendation only, until the decision is made.
+
+## Week 6 -- Conformal Risk Control (2026-10-26)
+
+### CRC
+
+`src/certus/conformal/crc.py`. With the shared orientation (high score =
+little defect evidence), an image is AUTO_CLEARed iff s(x) > lambda, and
+the missed-defect loss L_i(lambda) = 1{y_i = defect and s_i > lambda} is
+non-increasing in lambda. lambda_hat = inf{lambda : n/(n+1) R_hat(lambda) +
+1/(n+1) <= epsilon}, searched over the calibration scores plus +inf (clear
+nothing). Two guarantees:
+
+- **joint:** E[1{defect and cleared}] <= epsilon, calibrated on all rows.
+- **conditional:** P(cleared | defect) <= epsilon, calibrated on the
+  defect rows only. This is the "at most epsilon of real defects are
+  missed" statement the blueprint's pitch actually makes.
+
+Monotonicity is tested explicitly, as the plan asks:
+- `test_missed_defect_loss_is_non_increasing_in_lambda` checks every
+  per-example L_i, not just the mean.
+- `calibrate_crc` runs `check_monotone` on every call.
+- `test_check_monotone_catches_a_sign_error` proves the flipped rule
+  (clear when s < lambda) is rejected rather than silently returning
+  garbage.
+
+A 400-trial synthetic test confirms risk <= epsilon for both guarantees.
+
+### S3 and S4
+
+- **S3, verbalized confidence** (`src/certus/scores/s3.py`): Qwen2-VL-2B
+  is asked for a 0-100 confidence, and S3 = 1 - c/100. All 3000 answers
+  parsed. But the model effectively answers only **0 (1519 times) or 50
+  (1478 times)**, plus 3 others. It's a two-valued score, and the "50"
+  bucket holds 308 of the 457 cracked images. Sanity AUC on 1000 SDNET
+  train images: **0.628**. That's the poorly calibrated practitioner
+  baseline (B11) the blueprint predicted, in its most extreme form.
+- **S4, detector objectness** (`src/certus/scores/s4.py`): OWLv2
+  zero-shot, one query per defect class, S4 = 1 - max box confidence.
+  Sanity AUC: **0.521** (deck 0.513, pavement 0.582, wall 0.498), which
+  is chance. On 256 px close-ups that are *all* concrete texture, an
+  object detector has no object to find. This matches the blueprint's
+  warning that detector scores are weak on diffuse defects, here in its
+  strongest form.
+
+Two engineering fixes were needed before S4 would run at all, both
+committed:
+1. fp16. fp32 at batch 8 needed 11.2 GB on the 8 GB card and spilled to
+   system memory (~11 s/image).
+2. The stock Owlv2ImageProcessor resizes with scipy on the CPU, which
+   left the GPU idle ~90% of the time (confirmed with a py-spy stack
+   dump). The same steps (pad with 0.5, bilinear resize to 960, clip,
+   normalise) now run in torch on the GPU. Max |difference| vs the stock
+   pipeline on 32 images: 0.006, correlation 0.999.
+
+### CRC at epsilon in {0.10, 0.05, 0.02, 0.01}
+
+`scripts/run_crc.py`, SDNET2018 E1 pool (3000 images, 457 cracked), n_cal
+= 2000 (~305 cracked calibrate the conditional guarantee), 100 seeds.
+Full table in `results/crc/crc_week6.json`. **All 32 cells valid: mean
+realised risk <= epsilon in every one.**
+
+Human-review fraction (HRF, share of images *not* auto-cleared), mean over
+100 seeds:
+
+| score (AUC) | joint 0.10 | 0.05 | 0.02 | 0.01 | conditional 0.10 | 0.05 | 0.02 | 0.01 |
+|---|---|---|---|---|---|---|---|---|
+| S1 CLIP (0.76) | 0.09 | 0.35 | 0.67 | 0.81 | 0.73 | 0.86 | 0.95 | 0.98 |
+| S2 Qwen "Yes" (0.78) | **0.07** | 0.38 | 0.72 | 0.84 | 0.78 | 0.88 | 0.96 | 0.99 |
+| S3 verbal (0.63) | 0.50 | 0.66 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| S4 OWLv2 (0.52) | 0.30 | 0.60 | 0.83 | 0.90 | 0.86 | 0.92 | 0.97 | 0.98 |
+
+Realised risk vs target, joint guarantee (mean +/- SD):
+
+| score | 0.10 | 0.05 | 0.02 | 0.01 |
+|---|---|---|---|---|
+| S1 | 0.1009 +/- 0.0124 | 0.0504 +/- 0.0079 | 0.0198 +/- 0.0050 | 0.0099 +/- 0.0036 |
+| S2 | 0.1012 +/- 0.0114 | 0.0518 +/- 0.0086 | 0.0205 +/- 0.0053 | 0.0099 +/- 0.0037 |
+| S4 | 0.1009 +/- 0.0117 | 0.0513 +/- 0.0085 | 0.0207 +/- 0.0053 | 0.0104 +/- 0.0040 |
+
+The few means a hair over target (e.g. S2 at 0.05: 0.0518) are within 2
+SE of epsilon: CRC bounds the *expected* risk, and is tight to O(1/n) by
+Theorem 2. "valid" in the JSON = mean <= epsilon + 3 SE.
+
+What it shows:
+- **The guarantee holds for every score, good or useless.** That's the
+  point of distribution-free risk control.
+- **What the score changes is the price.** At joint epsilon = 0.10, S2
+  sends 7% of images to a human and S4 sends 30%. Same guarantee, 4x the
+  labour.
+- **S3's ties are fatal.** Its two values mean CRC can either clear the
+  whole "c = 0" bucket (146 cracked images inside) or nothing. At epsilon
+  <= 0.02, or under the conditional guarantee at any level, it clears
+  nothing, so HRF = 1.00. Valid, and worthless. That's a concrete,
+  quotable reason why verbalized confidence fails as a risk-control
+  score.
+- **The conditional guarantee is expensive with off-the-shelf scores.**
+  Missing at most 5% of real cracks costs 86-92% human review. This is
+  the headline efficiency problem for E3 (Week 9): better scores (E2,
+  Week 8), not better conformal machinery, are where the gains are.
+
+### Gold labelling
+
+The plan's "300 total" can't happen: CBRI's non-train pool is 175, and all
+175 have been labelled since Week 4's close-out. Logged, not deferred.
+
+### Still open
+
+- Primary dataset: Weeks 5-6 run on SDNET2018 per the Week 5
+  recommendation. Not yet formally confirmed.
