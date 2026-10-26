@@ -1,0 +1,75 @@
+% =============================================================================
+% Certus -- Section: Label noise (DRAFT, Week 7)
+% Numbers: results/week7/week7.json (100 seeds; manifest hash aeaa352b...).
+% =============================================================================
+
+\section{Label Noise: Whose Guarantee Is It?}
+\label{sec:label-noise}
+
+A conformal guarantee is a statement about the labels it was calibrated
+against. If those labels are wrong, the guarantee still holds, but it is a
+guarantee about agreement with the labeller rather than about missed
+defects. The primary dataset's labels were bootstrapped with GPT-4V and
+published on Roboflow, the usual route by which inspection datasets come
+into being. We measured how far that route can be trusted.
+
+\paragraph{Agreement with a hand-labelled gold set.}
+We hand-labelled every CBRI image outside the training split ($n = 175$)
+without seeing the bootstrap annotations. Agreement on the binary
+defect/no-defect label is at chance: Cohen's $\kappa = -0.007$. Per class,
+$\kappa$ ranges from $-0.02$ (corrosion) to $0.29$ (vegetation), with
+crack at $0.16$. The disagreement is one-sided. Of the 74 images the
+bootstrap leaves unannotated (and a pipeline would therefore treat as
+defect-free), 73 contain a defect. Overall the bootstrap misses $42\%$ of
+gold defects (73 of 172), and it almost never invents one (2 of 175).
+
+\paragraph{Which defects are missed matters more than how many.}
+Hidden defects affect the two guarantees we study differently.
+\begin{itemize}
+  \item \emph{Joint} risk, $\mathbb{E}[\mathbf{1}\{\text{defect} \wedge
+  \text{cleared}\}] \le \varepsilon$: a hidden defect looks free to clear,
+  so the realised risk inflates by roughly $1/(1-h)$ for a hidden fraction
+  $h$, whichever defects are hidden.
+  \item \emph{Conditional} risk, $\Pr(\text{cleared} \mid \text{defect})
+  \le \varepsilon$, calibrated on labelled defects only: if defects are
+  hidden at random, the labelled ones remain an exchangeable sample of all
+  defects and the guarantee survives, at a smaller $n$. If the hidden
+  defects are the ones the model also finds hard, it fails.
+\end{itemize}
+On CBRI the bootstrap's misses do not look harder: the defects it missed
+receive the same S1 and S2 scores as those it annotated (one-sided
+Mann--Whitney $p = 0.71$ and $0.90$).
+
+\paragraph{Degradation on real labels.}
+Within the 175 gold images we calibrated CRC on the bootstrap labels and
+measured the realised miss rate against gold (100 random 100/75 splits).
+\begin{itemize}
+  \item \textbf{Joint guarantee: broken.} At $\varepsilon = 0.05$ the realised
+  risk is $0.093$ (S1) and $0.101$ (S2), i.e. $1.85\times$ and $2.0\times$ the
+  promised bound. It exceeds $\varepsilon$ in $86$--$90\%$ of deployments.
+  Calibrated on gold, the same pipeline realises $0.052$.
+  \item \textbf{Conditional guarantee: survives.} The realised risk is $0.042$
+  (S1) and $0.052$ (S2) at $\varepsilon = 0.05$. This is consistent with the
+  missing-at-random pattern above.
+\end{itemize}
+
+\paragraph{Controlled degradation.}
+On SDNET2018, whose human labels we treat as ground truth, we hid a
+fraction $h$ of defects in the calibration labels only, up to CBRI's
+observed $h = 0.42$, either at random or worst-case (the most
+clean-looking defects first). With random hiding the joint risk grows
+smoothly to $1.7$--$2.0\times\varepsilon$ at $h = 0.42$, and the conditional
+risk stays at or below $\varepsilon$ throughout. With worst-case hiding,
+$h = 0.10$ already pushes the conditional miss rate to $0.14$ at
+$\varepsilon = 0.05$ ($2.9\times$). At $h = 0.42$ it reaches $0.45$, i.e.\
+nearly half of all real defects are auto-cleared under a nominal $5\%$
+guarantee.
+
+\paragraph{Consequence.}
+Every headline number in this paper is calibrated on human labels: gold
+for CBRI, the original annotations for SDNET2018. A pipeline calibrated
+on bootstrapped labels inherits their errors silently, with no symptom
+visible from inside the pipeline. Under the joint guarantee, labels like
+CBRI's double the realised miss rate. Under the conditional guarantee,
+the damage depends entirely on whether the labeller's misses correlate
+with the model's. That cannot be checked without a gold set.
