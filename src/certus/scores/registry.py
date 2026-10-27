@@ -31,6 +31,10 @@ FIT_SPLITS = frozenset({"train", "tune"})
 class ScoreContext:
     image_roots: dict[str, Path]  # dataset name -> raw root
     cache_dir: Path
+    # Fitted scores (S6, S7) read their tuning rows from the manifest and
+    # their base scores from the scores table.
+    manifest: Path = Path("data/manifest/splits_v1.csv")
+    db: Path = Path("data/cache/certus.sqlite")
 
 
 @dataclass(frozen=True)
@@ -95,3 +99,6 @@ def _load_builtin_scores() -> None:
     import certus.scores.s2  # noqa: F401
     import certus.scores.s3  # noqa: F401
     import certus.scores.s4  # noqa: F401
+    import certus.scores.s5  # noqa: F401
+    import certus.scores.s6  # noqa: F401
+    import certus.scores.s7  # noqa: F401
