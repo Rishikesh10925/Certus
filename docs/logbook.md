@@ -923,3 +923,91 @@ set, now with numbers.
   way. Still not formally confirmed.
 - The intra-labeller check on the gold set (re-label 20 blind) is still
   worth doing, now that the gold set carries a paper section.
+
+## Week 8 -- Score Comparison (2026-10-27)
+
+### S5, S6, S7
+
+- **S5, MC-dropout** (`src/certus/scores/s5.py`). CLIP has no dropout
+  layers, so 20 passes of dropout (p = 0.1) go on the image embedding
+  before S1's zero-shot head. Dispersion alone has no direction, and
+  "the model is unsure" can't justify auto-clearing. So S5 is a lower
+  confidence bound on cleanliness, mean(1-p) - std(1-p). Masks are
+  seeded per image, so a score never depends on its batch (tested).
+- **S6, feature typicality** (`s6.py`). Negative Mahalanobis distance
+  (Ledoit-Wolf) from the CLIP embedding to 3000 *defect-free* SDNET2018
+  train images, excluding the tuning set. Defects and unfamiliar scenes
+  both score low. That's the shift-aware property the blueprint wants
+  for the LOSO weeks.
+- **S7, learned combination** (`s7.py`). Logistic regression over
+  standardised S1-S6, fit only on the fixed tuning set
+  (`certus.data.splits.tune_records`: 500+500 SDNET2018 *train* images,
+  the same 1000 that score_sanity reports AUCs on). It goes through the
+  fit_* guard and refuses to score its own tuning rows (tested).
+  Coefficients x1000: S1 -1397, S2 -1494, S3 +448, S4 +488, S5 +520,
+  S6 +221. S1 and S2 carry it. The positive weights on S3-S6 are mostly
+  corrections between correlated scores (S5 is nearly S1).
+
+### E2 -- all seven scores, 100 seeds
+
+`scripts/run_e2.py`, SDNET2018 pool (3000, 457 cracked), CRC, n_cal = 2000.
+Results in `results/e2/e2_scores.json`, figure in
+`paper/figures/F3_scores.png`. Human-review fraction (mean over seeds):
+
+| score | AUC (pool) | joint 0.10 | joint 0.05 | joint 0.02 | joint 0.01 | cond 0.10 | cond 0.05 | cond 0.02 |
+|---|---|---|---|---|---|---|---|---|
+| S7 combination | 0.793 | **0.07** | **0.30** | **0.63** | **0.78** | **0.71** | **0.83** | **0.91** |
+| S1 CLIP | 0.755 | 0.09 | 0.35 | 0.67 | 0.81 | 0.73 | 0.85 | 0.95 |
+| S5 MC-dropout | 0.748 | 0.09 | 0.37 | 0.67 | 0.80 | 0.73 | **0.83** | 0.95 |
+| S2 Qwen2-VL | 0.747 | **0.07** | 0.38 | 0.72 | 0.84 | 0.78 | 0.88 | 0.96 |
+| S6 typicality | 0.649 | 0.16 | 0.52 | 0.78 | 0.89 | 0.83 | 0.91 | 0.95 |
+| S3 verbal | 0.612 | 0.50 | 0.66 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| S4 OWLv2 | 0.549 | 0.30 | 0.60 | 0.83 | 0.90 | 0.86 | 0.92 | 0.97 |
+
+The guarantee holds for all 56 cells (worst mean risk / epsilon = 1.04,
+within Monte-Carlo error of a bound on the expectation).
+
+What it says (contribution C1):
+- **The learned combination wins.** S7 is best or tied-best in every
+  cell. It saves 5 points of review vs the best single score at joint
+  0.05 (30% vs 35%), and 4 points at conditional 0.02 (91% vs 95%).
+  That's a real but modest gain from stacking off-the-shelf scores.
+- **Two families, a clear gap.** The "does the model think it's a
+  defect" scores (S1, S2, S5, S7: AUC 0.75-0.79) need 30-38% review at
+  joint 0.05. Everything else (typicality, verbal confidence, detector
+  boxes: AUC 0.55-0.65) needs 52-66%.
+- **AUC predicts the ranking almost perfectly.** The one exception is S3:
+  its ties make it worse than its AUC suggests (it clears nothing at
+  epsilon <= 0.02).
+- **S5's dropout bound adds nothing over S1.** The same signal, slightly
+  noisier. MC-dropout on a frozen embedding isn't real epistemic
+  uncertainty. A head with genuine dropout might differ, but there's no
+  trained head to put it on.
+- **The conditional guarantee stays expensive with every score.** Even S7
+  needs 71% review to miss at most 10% of cracks. Off-the-shelf models
+  are the bottleneck, not the conformal machinery.
+
+### Paper: Method and Setup drafted
+
+`paper/method.tex` (~950 words) and `paper/setup.tex` (~670 words), about
+three pages, matching the plan. Method covers the triage rule, the loss,
+both guarantees, CRC, LTT, split CP, all seven scores, and the "three
+splits" enforcement. Setup covers data, provenance, the tuning set, the
+protocol, baselines, metrics and compute.
+
+One disclosure found while writing it, now stated in the paper: the
+Week 4 choice of S2's assertion ("Yes" vs the full sentence) was made on
+80 cal-split images, and 31 of them fall inside the 3000-image evaluation
+pool (1%). It was a single binary choice, so the effect is negligible,
+but "disjoint" would have been false.
+
+### Gate 1
+
+| criterion | status |
+|---|---|
+| Figure F3 exists | yes: `paper/figures/F3_scores.png` |
+| Method and Setup sections written | yes: drafted, ~3 pages |
+| Half the paper is real | intro claims (Week 1) + Method + Setup + label-noise section + F2 + F3. Results for C1 are in hand; C2 (efficiency curve, Week 9) and C3 (shift, Weeks 10-13) are not yet |
+
+The plan's gate evidence asks for the drafted sections to be "read aloud
+or shared for a sanity check". **That part is the user's.**
