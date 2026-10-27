@@ -1,0 +1,142 @@
+% =============================================================================
+% Certus -- Section: Method (DRAFT, Week 8)
+% Code references are to src/certus/; every number in Setup/Results is
+% regenerable from scripts/ and results/.
+% =============================================================================
+
+\section{Method}
+\label{sec:method}
+
+Certus is a calibration layer, not a detector. It takes any model that
+assigns an image a scalar score, uses a labelled calibration set to turn
+that score into a triage threshold, and attaches a finite-sample,
+distribution-free bound on the rate at which real defects are silently
+cleared. The detector is never retrained. Everything below holds for
+\emph{any} score; the score only determines how many images must go to a
+human.
+
+\subsection{Scores and the triage rule}
+
+A nonconformity score $s : \mathcal{X} \to \mathbb{R}$ maps an image to a
+real number. We orient every score the same way: a high $s(x)$ means the
+model sees little evidence of a defect. The triage rule has one parameter
+$\lambda$:
+\begin{equation}
+  \textsc{auto-clear}(x) \iff s(x) > \lambda,
+\end{equation}
+and every image not auto-cleared is routed to a human. The economic output
+of the system is the \emph{human-review fraction},
+$\mathrm{HRF}(\lambda) = \Pr(s(X) \le \lambda)$.
+
+\subsection{Missed-defect loss and two guarantees}
+
+With $y \in \{0, 1\}$ indicating a defect, the missed-defect loss is
+\begin{equation}
+  L_i(\lambda) = \mathbf{1}\{y_i = 1 \wedge s(x_i) > \lambda\},
+\end{equation}
+the indicator that a real defect was auto-cleared. $L_i$ is non-increasing
+in $\lambda$: raising the threshold can only clear fewer images. This
+monotonicity is the one property the guarantees below rely on. The code
+checks it at every calibration, and a unit test confirms that the
+sign-flipped rule is rejected rather than silently accepted.
+
+We report two guarantees that differ in what they condition on.
+\begin{itemize}
+  \item \textbf{Joint:} $\mathbb{E}[\mathbf{1}\{\text{defect} \wedge
+  \text{cleared}\}] \le \varepsilon$, the share of \emph{all} images that
+  are defects and were cleared. Calibrated on all rows.
+  \item \textbf{Conditional:} $\Pr(\text{cleared} \mid \text{defect}) \le
+  \varepsilon$, the share of \emph{real defects} that are missed.
+  Calibrated on defect-positive rows only, which are exchangeable with
+  future defects. This is the statement an inspector actually wants. It is
+  more expensive, because the defects alone must certify the bound.
+\end{itemize}
+
+\subsection{Conformal risk control}
+
+Given $n$ exchangeable calibration examples, conformal risk control
+\citep{angelopoulos2024crc} sets
+\begin{equation}
+  \hat\lambda = \inf\Big\{\lambda : \tfrac{n}{n+1}\hat R_n(\lambda) +
+  \tfrac{B}{n+1} \le \varepsilon\Big\},
+  \qquad \hat R_n(\lambda) = \tfrac{1}{n}\textstyle\sum_i L_i(\lambda),
+\end{equation}
+with $B = 1$. This gives $\mathbb{E}[L_{n+1}(\hat\lambda)] \le \varepsilon$
+over the joint draw of calibration and test data, and the bound is tight to
+$O(1/n)$. Because $\hat R_n$ only changes at calibration scores, the
+infimum is searched over those scores plus $+\infty$, the
+``clear nothing'' fallback. That fallback is returned whenever
+$\varepsilon \le B/(n+1)$. In that case the honest answer is that every
+image goes to a human.
+
+\subsection{Learn-then-Test}
+
+CRC bounds risk \emph{on average} over calibration draws, so roughly half
+of all deployments realise a risk slightly above $\varepsilon$.
+Learn-then-Test \citep{angelopoulos2021ltt} instead gives
+$\Pr(R(\hat\lambda) \le \varepsilon) \ge 1 - \delta$ for \emph{this}
+deployment. For each $\lambda$ it tests $H_\lambda : R(\lambda) >
+\varepsilon$ with the Hoeffding--Bentkus p-value
+\begin{equation}
+  p_\lambda = \min\Big(e^{-n\,h(\hat R_n \wedge \varepsilon,\,
+  \varepsilon)},\; e\cdot\Pr\big(\mathrm{Bin}(n, \varepsilon) \le \lceil
+  n\hat R_n\rceil\big)\Big),
+\end{equation}
+where $h$ is the Bernoulli KL divergence. It then applies fixed-sequence
+testing from $\lambda = +\infty$ downwards, stopping at the first
+non-rejection. Monotone risk makes this order natural, so $\delta$ is
+not split across hypotheses.
+
+\subsection{Split conformal prediction}
+
+For the validity study (E1) and as baselines we also implement split
+conformal prediction with the LAC, APS and RAPS scores. The threshold
+$\hat q$ is the $\lceil(n+1)(1-\alpha)\rceil$-th smallest calibration
+score, computed as an exact order statistic. The common
+$\mathrm{quantile}(1-\alpha)$ shortcut interpolates below that order
+statistic and under-covers. Our property test catches it at
+$n = 20$, $\alpha = 0.1$, where coverage drops to $0.854$.
+
+\subsection{Nonconformity scores}
+
+No fine-tuned detector exists for our data: the source dataset's public
+project lists zero trained models. Every score is therefore built from
+off-the-shelf models, which the method's model-agnosticism permits and
+which makes the comparison reproducible.
+\begin{description}
+  \item[S1, CLIP zero-shot.] $1 - p(\text{defect})$, where $p$ is the
+  CLIP ViT-B/32 softmax mass on four defect prompts against two clean-wall
+  prompts. A linear head trained on the bootstrapped labels was at chance
+  (5-fold AUC $0.51$); zero-shot needs no labels at all.
+  \item[S2, generative log-probability.] $-\log p(\text{``Yes''})$ as
+  Qwen2-VL-2B's answer to a fixed defect question, teacher-forced.
+  Averaging over a full assertion sentence diluted the one informative
+  token (AUC $0.58$ vs.\ $0.82$ on an 80-image selection sample). That
+  single binary choice is the only one made on calibration-split data:
+  31 of the 80 selection images fall in the 3000-image evaluation pool
+  (1\%). Score quality is reported on the disjoint tuning set.
+  \item[S3, verbalised confidence.] $1 - c/100$ for the model's stated
+  0--100 confidence. Included as the practitioner baseline.
+  \item[S4, detector objectness.] $1 - $ the maximum OWLv2 box confidence
+  over one text query per defect class.
+  \item[S5, MC-dropout bound.] Twenty passes of dropout ($p = 0.1$) on the
+  CLIP embedding before S1's head. The score is
+  $\mathrm{mean}(1-p_k) - \mathrm{std}(1-p_k)$: an image is cleared only if
+  it looks clean \emph{and} stays clean under perturbation. Masks are
+  seeded per image.
+  \item[S6, feature typicality.] Negative Mahalanobis distance (Ledoit--Wolf
+  covariance) from the CLIP embedding to 3000 defect-free training images.
+  Defects and unfamiliar scenes both score low.
+  \item[S7, learned combination.] Logistic regression over standardised
+  S1--S6.
+\end{description}
+
+\subsection{Three splits, not two}
+
+A score fitted on calibration data is no longer independent of it, and the
+guarantee silently fails. S6's reference set and S7's combiner are fitted
+only on training-split rows, and S7 on a fixed 1000-image tuning set
+disjoint from every calibration pool. This is enforced in code: every
+function whose name begins with \texttt{fit\_} calls a guard that raises if
+it is handed a calibration or test row, and S7 refuses to score its own
+tuning rows.

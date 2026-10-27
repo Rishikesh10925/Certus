@@ -1,0 +1,102 @@
+% =============================================================================
+% Certus -- Section: Experimental setup (DRAFT, Week 8)
+% =============================================================================
+
+\section{Experimental Setup}
+\label{sec:setup}
+
+\subsection{Data}
+
+\paragraph{SDNET2018.}
+SDNET2018 \citep{dorafshan2018sdnet} contains 56{,}092 human-labelled
+$256\times256$ images of concrete bridge decks, pavements and walls, of
+which 8{,}484 (15\%) are cracked. Every filename encodes a physical
+structure identifier, giving 230 real structures. It is our primary
+dataset: its labels are human, and its majority of clean images makes the
+auto-clear decision meaningful. We draw a fresh deterministic 70/15/15
+stratified split (seed 0). Unless stated otherwise, experiments use a fixed
+3000-image sample of the calibration split (457 cracked) as their pool.
+
+\paragraph{CBRI.}
+The CBRI building-defect dataset (Roboflow) contains 1{,}518 images of
+whole building facades, labelled for crack, vegetation, corrosion and
+dampness by GPT-4V bootstrapping. We hand-labelled all 175 images outside
+its training split, blind to the bootstrap annotations. 172 contain a
+defect. We use CBRI for the label-noise study (\S\ref{sec:label-noise})
+and as an unseen target site for the shift study. A domain classifier on
+frozen CLIP features separates CBRI from SDNET2018 with AUC $0.9996$.
+
+\paragraph{Provenance.}
+Both datasets are version-controlled with DVC. All splits are frozen in a
+manifest whose content hash
+(\texttt{aeaa352b\ldots}) is logged with every result, along with each
+score's model version, the pool size, the number of positives and the seeds.
+
+\subsection{Tuning set}
+
+Fitted scores learn from a fixed tuning set: 500 cracked and 500 uncracked
+SDNET2018 \emph{training} images. It is disjoint from every calibration
+pool. We also report each score's AUC on it as a sanity check of the
+score's signal.
+
+\subsection{Protocol}
+
+Every number is a mean over 100 seeds. Each seed draws a fresh random
+partition of the pool into calibration and test rows; the seed is derived
+from $(\text{base seed}, i)$, so any single seed can be replayed in
+isolation. We report mean $\pm$ SD and, for coverage, a 95\% percentile
+bootstrap interval over seeds.
+
+\begin{itemize}
+  \item \textbf{E1, validity.} Split CP (LAC, APS, RAPS) and baselines
+  B1--B3, $\alpha \in \{0.01, 0.05, 0.10, 0.20\}$, $n_{\text{cal}} \in \{50,
+  200, 1000\}$, scores S1 and S2, on the SDNET2018 pool and on all of CBRI.
+  The gate requires mean coverage within $\pm 2$ points of $1-\alpha$.
+  \item \textbf{Risk control.} CRC and LTT ($\delta = 0.05$),
+  $\varepsilon \in \{0.10, 0.05, 0.02, 0.01\}$, joint and conditional,
+  $n_{\text{cal}} = 2000$, which leaves about 300 defects to certify the
+  conditional bound.
+  \item \textbf{E2, score comparison.} S1--S7 under CRC with the same
+  splits and seeds. Metric: HRF at fixed $\varepsilon$, plus AUC on the
+  pool.
+  \item \textbf{Label noise.} Calibrate on labels with a fraction $h$ of
+  defects hidden (randomly, or worst-case, i.e.\ the most clean-looking
+  first) and measure the realised miss rate against the clean labels. On
+  CBRI, calibrate on bootstrap versus gold labels.
+\end{itemize}
+
+\subsection{Baselines}
+
+\begin{description}
+  \item[B1] Raw softmax: classes in descending probability until their
+  mass reaches $1-\alpha$.
+  \item[B2] B1 after temperature scaling fitted by NLL.
+  \item[B3] Selective classification: answer the top class above the
+  most permissive max-probability threshold whose \emph{empirical}
+  miscoverage on the tuning rows is $\le\alpha$. In effect this is split
+  CP without the $+1$ finite-sample correction.
+\end{description}
+B2 and B3 fit on the same rows conformal methods calibrate on, so every
+method has the same data budget.
+
+\subsection{Metrics}
+
+\begin{itemize}
+  \item \textbf{Coverage:} the share of test images whose prediction set
+  contains the true label (E1).
+  \item \textbf{Realised risk:} the empirical missed-defect rate at
+  $\hat\lambda$ on test rows. It must sit at or below $\varepsilon$ on
+  average for CRC, and with probability $1-\delta$ for LTT.
+  \item \textbf{Exceedance:} the share of seeds whose realised risk
+  exceeds $\varepsilon$, i.e.\ what a single deployment experiences.
+  \item \textbf{HRF:} the share of test images not auto-cleared. This is
+  the cost of the guarantee and the paper's central quantity.
+\end{itemize}
+
+\subsection{Compute}
+
+All models run frozen on a single 8\,GB laptop GPU (RTX 5050). Qwen2-VL-2B
+runs in bf16 and OWLv2 in fp16, with its preprocessing moved onto the GPU
+(the stock CPU resize left the GPU idle about 90\% of the time; outputs
+match the stock pipeline to $0.006$). Scoring 3000 images takes 5--25
+minutes per score. All conformal computation runs on the CPU in seconds.
