@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.metrics import roc_auc_score
 
-from certus.data.splits import read_manifest
+from certus.data.splits import read_manifest, tune_records
 from certus.data.store import connect, write_scores
 from certus.scores.registry import ScoreContext, get_score
 
@@ -38,12 +38,17 @@ def main() -> int:
     parser.add_argument("--db", type=Path, default=Path("data/cache/certus.sqlite"))
     args = parser.parse_args()
 
-    records = [r for r in read_manifest(args.manifest, "sdnet2018") if r.split == args.split]
-    rng = random.Random(args.seed)
-    sample = rng.sample([r for r in records if r.defect_positive], args.n_per_class)
-    sample += rng.sample([r for r in records if not r.defect_positive], args.n_per_class)
+    if args.split == "train":
+        sample = tune_records(args.manifest, args.n_per_class, args.seed)
+    else:
+        records = [r for r in read_manifest(args.manifest, "sdnet2018") if r.split == args.split]
+        rng = random.Random(args.seed)
+        sample = rng.sample([r for r in records if r.defect_positive], args.n_per_class)
+        sample += rng.sample([r for r in records if not r.defect_positive], args.n_per_class)
 
-    ctx = ScoreContext({"sdnet2018": args.secondary_root}, args.cache_dir)
+    ctx = ScoreContext(
+        {"sdnet2018": args.secondary_root}, args.cache_dir, manifest=args.manifest, db=args.db
+    )
     result = get_score(args.score)(sample, ctx)
     with connect(args.db) as conn:
         write_scores(conn, sample, args.score, result.model_version, result.values)

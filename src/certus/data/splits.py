@@ -165,3 +165,16 @@ def sample_records(
     if n is None or n >= len(pool):
         return pool
     return sorted(random.Random(seed).sample(pool, n), key=lambda r: r.relpath)
+
+
+def tune_records(manifest_path: Path, n_per_class: int = 500, seed: int = 0) -> list[ImageRecord]:
+    """The fixed SDNET2018 tuning set: a balanced sample of its *train*
+    split (n_per_class cracked + n_per_class uncracked). It is what fitted
+    scores (S6's reference set excludes it, S7 is fit on it) may learn
+    from, it's disjoint from every cal-split pool, and it's the same 1000
+    images scripts/score_sanity.py reports AUCs on."""
+    records = [r for r in read_manifest(manifest_path, "sdnet2018") if r.split == "train"]
+    rng = random.Random(seed)
+    sample = rng.sample([r for r in records if r.defect_positive], n_per_class)
+    sample += rng.sample([r for r in records if not r.defect_positive], n_per_class)
+    return sample

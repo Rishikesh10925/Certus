@@ -65,6 +65,8 @@ def main() -> int:
     ctx = ScoreContext(
         image_roots={"cbri": args.cbri_root, "sdnet2018": args.secondary_root},
         cache_dir=args.cache_dir,
+        manifest=args.manifest,
+        db=args.db,
     )
     result = get_score(args.score)(records, ctx)
 
