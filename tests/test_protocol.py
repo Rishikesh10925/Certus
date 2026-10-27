@@ -125,3 +125,15 @@ def test_crc_protocol_controls_risk_and_reports_hrf(conditional: bool) -> None:
     assert 0.0 < summ["hrf_mean"] < 1.0
     assert summ["lam_finite_frac"] == 1.0
     assert res == run_crc_protocol(s, y, 0.05, 2000, conditional, n_seeds=60)
+
+
+def test_figure_f3_renders(tmp_path: Path) -> None:
+    from certus.viz.figures import figure_f3
+
+    rows = [
+        {"score": s, "guarantee": "joint", "epsilon": 0.05, "hrf_mean": h, "hrf_sd": 0.02}
+        for s, h in (("s1", 0.4), ("s7", 0.3))
+    ]
+    out = tmp_path / "f3.png"
+    figure_f3(rows, [("joint", 0.05)], out, {"s1": 0.7, "s7": 0.8})
+    assert out.stat().st_size > 1000
