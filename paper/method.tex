@@ -11,7 +11,9 @@ Certus is a calibration layer, not a detector. It takes any model that
 assigns an image a scalar score, uses a labelled calibration set to turn
 that score into a triage threshold, and attaches a finite-sample,
 distribution-free bound on the rate at which real defects are silently
-cleared. The detector is never retrained. Everything below holds for
+cleared. The one assumption is that calibration and deployment images are
+exchangeable; \S\ref{sec:label-noise} and the shift study test what
+happens when they are not. The detector is never retrained. Everything below holds for
 \emph{any} score; the score only determines how many images must go to a
 human.
 
@@ -65,14 +67,16 @@ with $B = 1$. This gives $\mathbb{E}[L_{n+1}(\hat\lambda)] \le \varepsilon$
 over the joint draw of calibration and test data, and the bound is tight to
 $O(1/n)$. Because $\hat R_n$ only changes at calibration scores, the
 infimum is searched over those scores plus $+\infty$, the
-``clear nothing'' fallback. That fallback is returned whenever
-$\varepsilon \le B/(n+1)$. In that case the honest answer is that every
+``clear nothing'' fallback. That fallback is returned whenever no finite
+threshold passes, which is guaranteed once $\varepsilon < B/(n+1)$. In that
+case the honest answer is that every
 image goes to a human.
 
 \subsection{Learn-then-Test}
 
-CRC bounds risk \emph{on average} over calibration draws, so roughly half
-of all deployments realise a risk slightly above $\varepsilon$.
+CRC bounds risk \emph{on average} over calibration draws, so a single
+deployment can land above $\varepsilon$: in our runs 31--57\% of seeds
+did, though by small margins.
 Learn-then-Test \citep{angelopoulos2021ltt} instead gives
 $\Pr(R(\hat\lambda) \le \varepsilon) \ge 1 - \delta$ for \emph{this}
 deployment. For each $\lambda$ it tests $H_\lambda : R(\lambda) >
@@ -95,7 +99,7 @@ $\hat q$ is the $\lceil(n+1)(1-\alpha)\rceil$-th smallest calibration
 score, computed as an exact order statistic. The common
 $\mathrm{quantile}(1-\alpha)$ shortcut interpolates below that order
 statistic and under-covers. Our property test catches it at
-$n = 20$, $\alpha = 0.1$, where coverage drops to $0.854$.
+$n = 20$, $\alpha = 0.1$, where expected coverage drops to about $0.86$.
 
 \subsection{Nonconformity scores}
 
@@ -114,13 +118,13 @@ which makes the comparison reproducible.
   token (AUC $0.58$ vs.\ $0.82$ on an 80-image selection sample). That
   single binary choice is the only one made on calibration-split data:
   31 of the 80 selection images fall in the 3000-image evaluation pool
-  (1\%). Score quality is reported on the disjoint tuning set.
+  (1\%). Score quality is also reported on the disjoint tuning set.
   \item[S3, verbalised confidence.] $1 - c/100$ for the model's stated
   0--100 confidence. Included as the practitioner baseline.
   \item[S4, detector objectness.] $1 - $ the maximum OWLv2 box confidence
   over one text query per defect class.
   \item[S5, MC-dropout bound.] Twenty passes of dropout ($p = 0.1$) on the
-  CLIP embedding before S1's head. The score is
+  CLIP embedding before S1's prompt comparison. The score is
   $\mathrm{mean}(1-p_k) - \mathrm{std}(1-p_k)$: an image is cleared only if
   it looks clean \emph{and} stays clean under perturbation. Masks are
   seeded per image.
@@ -134,9 +138,10 @@ which makes the comparison reproducible.
 \subsection{Three splits, not two}
 
 A score fitted on calibration data is no longer independent of it, and the
-guarantee silently fails. S6's reference set and S7's combiner are fitted
-only on training-split rows, and S7 on a fixed 1000-image tuning set
-disjoint from every calibration pool. This is enforced in code: every
+guarantee silently fails. Both fitted scores therefore learn only from
+the training split: S6's reference set is 3000 clean training images, and
+S7's combiner is fitted on a separate 1000-image tuning set. Neither
+overlaps any calibration pool. This is enforced in code: every
 function whose name begins with \texttt{fit\_} calls a guard that raises if
 it is handed a calibration or test row, and S7 refuses to score its own
 tuning rows.

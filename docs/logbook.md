@@ -1011,3 +1011,28 @@ but "disjoint" would have been false.
 
 The plan's gate evidence asks for the drafted sections to be "read aloud
 or shared for a sanity check". **That part is the user's.**
+
+### Gate 1 sanity check (2026-10-27)
+
+Every factual claim in Method and Setup was checked against the code and
+`results/`. Seven fixes:
+
+- **Setup, B3**: said it fits on "tuning rows"; it fits on the calibration
+  rows (`protocol._b3`), the same budget as every other method.
+- **Method, LTT motivation**: "roughly half of deployments" replaced by the
+  measured exceedance, 31-57% of seeds.
+- **Method, CRC fallback**: `<=` was wrong at the boundary; at
+  eps = 1/(n+1), a finite threshold can still pass.
+- **Method, split CP**: coverage 0.854 replaced by the test's expected
+  value, ~0.86 (18.1/21).
+- **Method, S5**: "S1's head" changed to "prompt comparison"; S1 has no
+  trained head.
+- **Method, three splits**: rewrote the sentence, which read as if S6
+  used the tuning set.
+- **Method, opening**: now states the exchangeability assumption up front,
+  rather than implying the bound holds unconditionally.
+
+Confirmed correct: the SDNET2018 counts, the 175 gold labels (172
+positive), blind labelling (the labeller shows only the image), and
+n_cal = 2000 leaving ~300 defects. A human read-aloud by the user is still
+welcome but no longer blocks Gate 1.
