@@ -190,4 +190,49 @@ def test_s3_and_s4_wiring_with_fake_models(tmp_path: Path, monkeypatch: pytest.M
     assert r3.notes == {"unparseable": 1}
     r4 = get_score("s4")(records, ctx)
     np.testing.assert_allclose(r4.values, [1.0, 2 / 3, 1 / 3, 0.0])
-    assert {"s3", "s4"} <= set(available_scores())
+    assert {"s3", "s4", "s5", "s6", "s7"} <= set(available_scores())
+
+
+def test_s5_is_per_image_deterministic(tmp_path: Path) -> None:
+    """S5's dropout masks are seeded by relpath, so an image's score can't
+    depend on which other images were scored alongside it."""
+    records, feats = _records_and_features()
+    ctx = _s1_ctx(tmp_path, records, feats)
+    a = get_score("s5")(records, ctx)
+    b = get_score("s5")(records[::-1], ctx)
+    np.testing.assert_allclose(a.values, b.values[::-1])
+    pos = np.array([r.defect_positive for r in records])
+    assert a.values[~pos].mean() > a.values[pos].mean()
+    # the lower bound never exceeds S1's point estimate by much
+    assert np.all(a.values <= get_score("s1")(records, ctx).values + 0.2)
+
+
+def test_s6_and_s7_fits_refuse_calibration_rows() -> None:
+    from certus.scores.s6 import fit_reference
+    from certus.scores.s7 import fit_combiner
+
+    x = np.random.default_rng(0).normal(size=(20, 4))
+    with pytest.raises(ValueError, match="fit_"):
+        fit_reference(x.astype(np.float32), ["train"] * 19 + ["cal"])
+    with pytest.raises(ValueError, match="fit_"):
+        fit_combiner(x, np.arange(20) % 2 == 0, ["test"] * 20)
+
+
+def test_s6_scores_atypical_images_low() -> None:
+    from certus.scores.s6 import fit_reference, mahalanobis
+
+    rng = np.random.default_rng(0)
+    ref = rng.normal(size=(500, 8)).astype(np.float32)
+    mean, prec = fit_reference(ref, ["train"] * 500)
+    typical = rng.normal(size=(50, 8)).astype(np.float32)
+    odd = (rng.normal(size=(50, 8)) + 4).astype(np.float32)
+    assert mahalanobis(odd, mean, prec).min() > mahalanobis(typical, mean, prec).mean()
+
+
+def test_s7_refuses_its_own_tuning_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from certus.scores import s7
+
+    records, _ = _records_and_features(6)
+    monkeypatch.setattr(s7, "tune_records", lambda manifest: records[:3])
+    with pytest.raises(ValueError, match="tuning rows"):
+        get_score("s7")(records, ScoreContext({"cbri": tmp_path}, tmp_path))

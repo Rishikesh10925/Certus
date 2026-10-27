@@ -1,8 +1,10 @@
-# S5 -- MC-dropout dispersion. Predictive variance across K stochastic
-# forward passes. Captures epistemic uncertainty at K-times inference cost;
-# often the best performer under shift. Precompute once and cache
-# (roadmap 3.6, scores table).
+# S5 -- MC-dropout dispersion. CLIP has no dropout layers, so K=20 passes of
+# dropout (p=0.1) go on the image embedding before S1's zero-shot head.
+# Oriented as a lower confidence bound on "clean": mean(1-p) - std(1-p), so
+# an image is cleared only if it looks clean AND stays so under dropout.
+# Masks are seeded per image (relpath). See src/certus/scores/s5.py.
 id: s5
 name: mc_dropout_dispersion
 params:
   k_passes: 20
+  dropout: 0.1
