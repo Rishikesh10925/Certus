@@ -139,3 +139,74 @@ def figure_f2(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=200, facecolor=SURFACE)
     plt.close(fig)
+
+
+SCORE_LABELS = {
+    "s1": "S1 CLIP zero-shot",
+    "s2": "S2 Qwen2-VL log-prob",
+    "s3": "S3 verbal confidence",
+    "s4": "S4 OWLv2 objectness",
+    "s5": "S5 MC-dropout bound",
+    "s6": "S6 feature typicality",
+    "s7": "S7 learned combination",
+}
+
+
+def figure_f3(
+    rows: Sequence[dict[str, Any]],
+    panels: Sequence[tuple[str, float]],
+    out_path: Path,
+    auc: dict[str, float] | None = None,
+) -> None:
+    """F3 -- score comparison: human-review fraction (mean +/- SD over
+    seeds) needed to hold missed defects below epsilon, one row per score,
+    sorted best first within each panel. One panel per (guarantee, epsilon).
+    Identity is the row label, so one colour is enough."""
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.6 * len(panels), 3.6), squeeze=False)
+    fig.patch.set_facecolor(SURFACE)
+    for ax, (guarantee, eps) in zip(axes[0], panels, strict=True):
+        _style(ax)
+        sel = sorted(
+            (r for r in rows if r["guarantee"] == guarantee and r["epsilon"] == eps),
+            key=lambda r: -r["hrf_mean"],
+        )
+        y = range(len(sel))
+        ax.errorbar(
+            [r["hrf_mean"] for r in sel],
+            list(y),
+            xerr=[r["hrf_sd"] for r in sel],
+            fmt="o",
+            color=SERIES[0],
+            markersize=6,
+            elinewidth=1.2,
+            capsize=0,
+            markeredgecolor=SURFACE,
+            markeredgewidth=0.8,
+        )
+        for yi, r in zip(y, sel, strict=True):
+            ax.annotate(
+                f"{r['hrf_mean'] * 100:.0f}%",
+                (r["hrf_mean"] + r["hrf_sd"], yi),
+                xytext=(5, 0),
+                textcoords="offset points",
+                va="center",
+                fontsize=7,
+                color=INK_MUTED,
+            )
+        labels = [
+            SCORE_LABELS.get(r["score"], r["score"])
+            + (f"  (AUC {auc[r['score']]:.2f})" if auc else "")
+            for r in sel
+        ]
+        ax.set_yticks(list(y), labels, fontsize=8, color=INK)
+        ax.set_xlim(0, 1.08)
+        ax.set_xlabel("human-review fraction (lower is better)", fontsize=8, color=INK)
+        what = "E[defect ∧ cleared]" if guarantee == "joint" else "P(cleared | defect)"
+        ax.set_title(f"{what} ≤ {eps:g}", fontsize=9, color=INK)
+    fig.suptitle(
+        "F3 — Score comparison at fixed risk (CRC, 100 seeds, mean ± SD)", fontsize=10, color=INK
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    plt.close(fig)
