@@ -152,6 +152,73 @@ SCORE_LABELS = {
 }
 
 
+def figure_f4(
+    rows: Sequence[dict[str, Any]],
+    scores: Sequence[str],
+    out_path: Path,
+    method: str = "crc",
+) -> None:
+    """F4 -- the efficiency curve (draft): human-review fraction against
+    the guaranteed miss rate, log x, one panel per guarantee, mean with a
+    +/- SD band over seeds. Stricter guarantees sit to the left."""
+    guarantees = (
+        ("conditional", "P(cleared | defect) ≤ ε"),
+        ("joint", "E[defect ∧ cleared] ≤ ε"),
+    )
+    fig, axes = plt.subplots(1, 2, figsize=(9.2, 3.8), sharey=True)
+    fig.patch.set_facecolor(SURFACE)
+    for ax, (guarantee, title) in zip(axes, guarantees, strict=True):
+        _style(ax)
+        for k, score in enumerate(scores):
+            pts = sorted(
+                (r["epsilon"], r["hrf_mean"], r["hrf_sd"])
+                for r in rows
+                if r["score"] == score and r["guarantee"] == guarantee and r["method"] == method
+            )
+            x = [p[0] for p in pts]
+            mean = [p[1] for p in pts]
+            ax.fill_between(
+                x,
+                [p[1] - p[2] for p in pts],
+                [p[1] + p[2] for p in pts],
+                color=SERIES[k],
+                alpha=0.15,
+                linewidth=0,
+            )
+            ax.plot(
+                x,
+                mean,
+                color=SERIES[k],
+                marker=MARKERS[k],
+                markersize=6,
+                linewidth=2,
+                markeredgecolor=SURFACE,
+                markeredgewidth=0.8,
+                label=SCORE_LABELS.get(score, score),
+            )
+        ax.set_xscale("log")
+        ax.set_xticks([0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5])
+        ax.set_xticklabels(["0.005", "0.01", "0.02", "0.05", "0.1", "0.2", "0.5"])
+        ax.minorticks_off()
+        ax.set_ylim(0, 1.03)
+        ax.set_xlabel("guaranteed miss rate ε (log scale)", fontsize=8, color=INK)
+        ax.set_title(title, fontsize=9, color=INK)
+    axes[0].set_ylabel("human-review fraction", fontsize=8, color=INK)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles, labels, loc="lower center", ncol=3, fontsize=8, frameon=False, labelcolor=INK
+    )
+    fig.suptitle(
+        f"F4 (draft) — Cost of a guaranteed miss rate ({method.upper()}, mean ± SD over seeds)",
+        fontsize=10,
+        color=INK,
+    )
+    fig.tight_layout(rect=(0, 0.07, 1, 0.95))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    plt.close(fig)
+
+
 def figure_f3(
     rows: Sequence[dict[str, Any]],
     panels: Sequence[tuple[str, float]],
