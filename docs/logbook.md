@@ -1036,3 +1036,44 @@ Confirmed correct: the SDNET2018 counts, the 175 gold labels (172
 positive), blind labelling (the labeller shows only the image), and
 n_cal = 2000 leaving ~300 defects. A human read-aloud by the user is still
 welcome but no longer blocks Gate 1.
+
+## Week 9 (in progress): efficiency curve
+
+### Done
+
+- `triage/policy.py` (AUTO_CLEAR / FLAG / ESCALATE) and `triage/economics.py`
+  (net saving, break-even ratio). `run_crc_protocol` now computes HRF through
+  the policy; E3 reproduces all 24 shared E2 cells exactly.
+- `scripts/run_e3.py`: S7, S1, S5 under CRC and LTT, joint and conditional,
+  epsilon from 0.50 to 0.005 (two orders, as C2 claims). Draft F4 in
+  `paper/figures/F4_efficiency.png`.
+- Economics correction: the roadmap's epsilon * pi miss term is only right for
+  the conditional guarantee. The joint guarantee already counts per image, so
+  its term is epsilon, capped at prevalence.
+
+### Results (CRC, S7, the best score)
+
+| epsilon | HRF, conditional | HRF, joint |
+|---|---|---|
+| 0.20 | 48% | 0% |
+| 0.10 | 71% | 7% |
+| 0.05 | 83% | 30% |
+| 0.02 | 91% | 63% |
+| 0.01 | 95% | 78% |
+| 0.005 | 97% | 87% |
+
+- Joint HRF hits 0 once epsilon exceeds prevalence (15%): clearing everything
+  already meets the bound, so those joint points say nothing.
+- Break-even c_m/c_h stays between about 7 and 37 across every CRC point. If a
+  missed defect costs more than about 37 human reviews, no point on these
+  curves beats full human review, measured at the guarantee's bound and
+  assuming humans miss nothing. Most of the config's 10-1000 sweep is therefore
+  in the losing region with off-the-shelf scores.
+
+### Not done
+
+- **Corruption probe not run.** Code and tests are committed
+  (`data/corruptions.py`, `scripts/run_corruption_probe.py`), but the run was
+  stopped at the user's request before any results or features were written.
+  Run it with `python scripts/run_corruption_probe.py`.
+- LTT rows are in `results/e3/e3_efficiency.json` but not yet reviewed.
