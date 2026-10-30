@@ -41,12 +41,17 @@ class FrozenVLM:
         chunks: list[npt.NDArray[np.float32]] = []
         for i in range(0, len(image_paths), batch_size):
             batch_paths = image_paths[i : i + batch_size]
-            images = [Image.open(p).convert("RGB") for p in batch_paths]
-            inputs = self.processor(images=images, return_tensors="pt").to(self.device)
-            batch_features = self.model.get_image_features(**inputs)
-            batch_features = batch_features / batch_features.norm(dim=-1, keepdim=True)
-            chunks.append(batch_features.cpu().numpy())
+            chunks.append(self.pil_features([Image.open(p).convert("RGB") for p in batch_paths]))
         return np.concatenate(chunks, axis=0)
+
+    @torch.no_grad()
+    def pil_features(self, images: list[Image.Image]) -> npt.NDArray[np.float32]:
+        """`image_features` for one batch of already-loaded images."""
+        inputs = self.processor(images=images, return_tensors="pt").to(self.device)
+        features = self.model.get_image_features(**inputs)
+        features = features / features.norm(dim=-1, keepdim=True)
+        out: npt.NDArray[np.float32] = features.cpu().numpy()
+        return out
 
     @torch.no_grad()
     def text_features(self, texts: list[str]) -> npt.NDArray[np.float32]:
