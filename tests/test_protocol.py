@@ -137,3 +137,18 @@ def test_figure_f3_renders(tmp_path: Path) -> None:
     out = tmp_path / "f3.png"
     figure_f3(rows, [("joint", 0.05)], out, {"s1": 0.7, "s7": 0.8})
     assert out.stat().st_size > 1000
+
+
+def test_crc_test_scores_shift_only_the_test_rows() -> None:
+    """Identical test_scores change nothing; lowering them clears fewer."""
+    from certus.eval.protocol import run_crc_protocol
+
+    rng = np.random.default_rng(0)
+    y = rng.random(1000) < 0.3
+    s = np.where(y, rng.normal(0.3, 0.2, 1000), rng.normal(0.7, 0.2, 1000))
+    base = run_crc_protocol(s, y, 0.05, 500, False, n_seeds=5)
+    same = run_crc_protocol(s, y, 0.05, 500, False, n_seeds=5, test_scores=s)
+    low = run_crc_protocol(s, y, 0.05, 500, False, n_seeds=5, test_scores=s - 5.0)
+    assert base == same
+    assert all(a.lam == b.lam for a, b in zip(base, low, strict=True))
+    assert all(r.hrf == 1.0 for r in low)

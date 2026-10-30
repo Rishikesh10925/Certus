@@ -173,6 +173,7 @@ def run_crc_protocol(
     method: str = "crc",
     delta: float = 0.05,
     calibration_labels: NDArray[np.bool_] | None = None,
+    test_scores: NDArray[np.float64] | None = None,
 ) -> list[CrcSeedResult]:
     """Risk control over n_seeds random cal/test partitions.
 
@@ -181,14 +182,18 @@ def run_crc_protocol(
     E[1{defect and cleared}]. method="ltt" swaps CRC for Learn-then-Test at
     level delta. `calibration_labels`, if given, are what calibration sees
     (e.g. noisy bootstrap labels) while `labels` stay the ground truth the
-    realised risk is measured against -- the label-noise experiment."""
+    realised risk is measured against -- the label-noise experiment.
+    `test_scores`, if given, are what the test rows score at deployment
+    (same images, shifted) -- the corruption probe."""
     from certus.conformal.crc import auto_clear, calibrate_crc
     from certus.conformal.ltt import calibrate_ltt
+    from certus.triage.policy import decide, human_review_fraction
 
     n = len(labels)
     if not 0 < n_cal < n:
         raise ValueError(f"n_cal={n_cal} must leave test rows in a pool of {n}")
     cal_y_all = labels if calibration_labels is None else calibration_labels
+    deployed = scores if test_scores is None else test_scores
     out = []
     for s in range(n_seeds):
         perm = np.random.default_rng([base_seed, s]).permutation(n)
@@ -200,7 +205,7 @@ def run_crc_protocol(
             lam = calibrate_ltt(scores[cal_rows], cal_y_all[cal_rows], epsilon, delta)
         else:
             raise ValueError(f"unknown risk-control method {method!r}")
-        cleared = auto_clear(scores[test], lam)
+        cleared = auto_clear(deployed[test], lam)
         defects = labels[test]
         miss_among = float(cleared[defects].mean()) if defects.any() else 0.0
         out.append(
@@ -208,7 +213,7 @@ def run_crc_protocol(
                 seed=s,
                 lam=lam,
                 risk=miss_among if conditional else float((cleared & defects).mean()),
-                hrf=float(1.0 - cleared.mean()),
+                hrf=human_review_fraction(decide(deployed[test], lam)),
                 miss_rate_among_defects=miss_among,
             )
         )
