@@ -1115,5 +1115,10 @@ small shifts, which motivates the shift corrections of Weeks 11-13.
   dataset. CBRI is the unseen target site for the shift study and the
   label-noise dataset. This is how Weeks 5-9 already ran.
 - Intra-labeller check set up: 20 gold images (seed 0), blanked and
-  shuffled, in `data/gold/relabel_check_v1.csv`. Results pending the
-  user's blind re-label (`scripts/relabel_check.py compare`).
+  shuffled, in `data/gold/relabel_check_v1.csv`.
+- **Re-label result: 20/20 identical**, on both defect yes/no and every
+  class (crack 15/15, vegetation 5/5). Kappa on yes/no is undefined, because
+  all 20 were "yes" both times (172/175 gold images are defects), so the
+  yes/no check carries no information. The class-level match is the real
+  evidence. Caveat: n = 20 and the same labeller, so this shows consistency,
+  not correctness.
