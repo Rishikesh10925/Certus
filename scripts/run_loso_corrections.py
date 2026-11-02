@@ -1,13 +1,15 @@
 #!/usr/bin/env python
-"""E4, Week 11 -- the shift corrections under leave-one-site-out.
-Writes results/e4/loso_v2.json and the side-by-side table
-results/e4/loso_v2.md.
+"""E4, Weeks 11-12 -- the four shift corrections under leave-one-site-out.
+Writes results/e4/loso_v3.json and the side-by-side table
+results/e4/loso_v3.md (v2, Week 11, had no localized CP).
 
 Same folds, pool, scores, levels and n_cal as run_loso.py (v1), so the
 vanilla rows reproduce v1 exactly. Adds Mondrian CP over k-means clusters
 of the CLIP features (k in 2, 4, 8, fit on the source sites) and weighted
 CP with cross-fitted domain-classifier weights; the weighted rows also log
-the effective sample size and the domain classifier's AUC.
+the effective sample size and the domain classifier's AUC. Localized CP
+weights by CLIP similarity with an adaptive bandwidth, k_frac in 0.05,
+0.1, 0.25.
 
 Usage:
     python scripts/run_loso_corrections.py
@@ -33,6 +35,7 @@ SOURCE_SITES = ("deck", "pavement", "wall")
 LEVELS = (0.10, 0.05)  # alpha for split CP and epsilon for CRC, paired
 N_CAL = 1000
 CLUSTERS = (2, 4, 8)
+K_FRACS = (0.05, 0.1, 0.25)
 
 
 def main() -> int:
@@ -42,7 +45,7 @@ def main() -> int:
     parser.add_argument("--db", type=Path, default=Path("data/cache/certus.sqlite"))
     parser.add_argument("--cache-dir", type=Path, default=Path("data/cache"))
     parser.add_argument("--n-seeds", type=int, default=100)
-    parser.add_argument("--out", type=Path, default=Path("results/e4/loso_v2.json"))
+    parser.add_argument("--out", type=Path, default=Path("results/e4/loso_v3.json"))
     args = parser.parse_args()
 
     pool = sample_records(read_manifest(args.manifest, "sdnet2018"), 3000, seed=0, split="cal")
@@ -83,6 +86,10 @@ def main() -> int:
                     runs[f"mondrian_k{k}"] = run_loso(
                         *common, method="mondrian", features=feats, n_clusters=k
                     )
+                for kf in K_FRACS:
+                    runs[f"localized_{kf:g}"] = run_loso(
+                        *common, method="localized", features=feats, k_frac=kf
+                    )
                 for method, res in runs.items():
                     rows.append(
                         {
@@ -99,22 +106,29 @@ def main() -> int:
     conn.close()
 
     report = {
-        "experiment": "e4_loso_v2_corrections",
+        "experiment": "e4_loso_v3_corrections",
         "manifest_hash": json.loads(args.manifest.with_suffix(".json").read_text())["overall_hash"],
         "sites": {s: int((sites == s).sum()) for s in sorted(set(sites.tolist()))},
         "source_sites": SOURCE_SITES,
         "n_cal": N_CAL,
         "n_seeds": args.n_seeds,
         "clusters": CLUSTERS,
+        "k_fracs": K_FRACS,
         "model_versions": versions,
         "rows": rows,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=1) + "\n")
 
-    methods = ["in_site", "vanilla", *(f"mondrian_k{k}" for k in CLUSTERS), "weighted"]
+    methods = [
+        "in_site",
+        "vanilla",
+        *(f"mondrian_k{k}" for k in CLUSTERS),
+        "weighted",
+        *(f"localized_{kf:g}" for kf in K_FRACS),
+    ]
     lines = [
-        "# LOSO v2 -- shift corrections side by side",
+        "# LOSO v3 -- four shift corrections side by side",
         "",
         f"n_cal = {N_CAL} source rows, {args.n_seeds} seeds. Cells are"
         " miss ratio / HRF for conditional CRC: miss ratio = mean P(cleared |"
