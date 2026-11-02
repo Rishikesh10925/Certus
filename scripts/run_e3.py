@@ -85,7 +85,7 @@ def main() -> int:
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=1) + "\n")
-    figure_f4(rows, SCORES, args.fig)
+    figure_f4(rows, SCORES, args.fig, prevalence, ltt_score="s7")
 
     print(f"prevalence {prevalence:.3f}")
     for r in rows:

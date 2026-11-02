@@ -221,18 +221,25 @@ def run_crc_protocol(
 
 
 def summarize_crc(results: list[CrcSeedResult], epsilon: float | None = None) -> dict[str, float]:
-    """Mean/SD of realised risk and HRF over seeds. With epsilon, also the
+    """Mean/SD of realised risk and HRF over seeds, a 95% percentile
+    bootstrap CI of the mean HRF, and the 5-95% seed range of HRF (what a
+    single deployment sees). With epsilon, also the
     share of seeds whose realised test risk exceeded it -- what a single
     deployment experiences (CRC: ~half, by design; LTT: <= delta-ish)."""
     risk = np.array([r.risk for r in results])
     hrf = np.array([r.hrf for r in results])
     lam = np.array([r.lam for r in results])
+    boot = np.random.default_rng(0).choice(hrf, size=(2000, hrf.size), replace=True).mean(axis=1)
     return {
         "risk_mean": float(risk.mean()),
         "risk_sd": float(risk.std(ddof=1)),
         "risk_se": float(risk.std(ddof=1) / np.sqrt(risk.size)),
         "hrf_mean": float(hrf.mean()),
         "hrf_sd": float(hrf.std(ddof=1)),
+        "hrf_ci_lo": float(np.percentile(boot, 2.5)),
+        "hrf_ci_hi": float(np.percentile(boot, 97.5)),
+        "hrf_p05": float(np.percentile(hrf, 5)),
+        "hrf_p95": float(np.percentile(hrf, 95)),
         "miss_rate_among_defects_mean": float(
             np.mean([r.miss_rate_among_defects for r in results])
         ),

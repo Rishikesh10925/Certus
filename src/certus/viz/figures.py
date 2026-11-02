@@ -156,61 +156,114 @@ def figure_f4(
     rows: Sequence[dict[str, Any]],
     scores: Sequence[str],
     out_path: Path,
-    method: str = "crc",
+    prevalence: float,
+    ltt_score: str | None = None,
+    labelled_eps: Sequence[float] = (0.1, 0.05, 0.01),
 ) -> None:
-    """F4 -- the efficiency curve (draft): human-review fraction against
-    the guaranteed miss rate, log x, one panel per guarantee, mean with a
-    +/- SD band over seeds. Stricter guarantees sit to the left."""
+    """F4 -- the efficiency curve: human-review fraction against the
+    guaranteed miss rate, log x, one panel per guarantee. Solid lines are
+    CRC means over seeds, with a 95% bootstrap CI of the mean (dark band)
+    and the 5-95% seed range (light band: what one deployment sees).
+    `ltt_score` adds that score under LTT, dashed. Joint points with
+    epsilon >= prevalence are dropped: clearing everything already
+    satisfies them. Stricter guarantees sit to the left."""
     guarantees = (
-        ("conditional", "P(cleared | defect) ≤ ε"),
-        ("joint", "E[defect ∧ cleared] ≤ ε"),
+        ("conditional", "Share of real defects missed: P(cleared | defect) ≤ ε"),
+        ("joint", "Missed defects per image: E[defect ∧ cleared] ≤ ε"),
     )
-    fig, axes = plt.subplots(1, 2, figsize=(9.2, 3.8), sharey=True)
+    ticks = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5]
+    fig, axes = plt.subplots(1, 2, figsize=(10.0, 4.2), sharey=True)
     fig.patch.set_facecolor(SURFACE)
+
+    def pts(score: str, guarantee: str, method: str) -> list[dict[str, Any]]:
+        sel = [
+            r
+            for r in rows
+            if r["score"] == score and r["guarantee"] == guarantee and r["method"] == method
+        ]
+        if guarantee == "joint":
+            sel = [r for r in sel if r["epsilon"] < prevalence]
+        return sorted(sel, key=lambda r: r["epsilon"])
+
     for ax, (guarantee, title) in zip(axes, guarantees, strict=True):
         _style(ax)
         for k, score in enumerate(scores):
-            pts = sorted(
-                (r["epsilon"], r["hrf_mean"], r["hrf_sd"])
-                for r in rows
-                if r["score"] == score and r["guarantee"] == guarantee and r["method"] == method
-            )
-            x = [p[0] for p in pts]
-            mean = [p[1] for p in pts]
+            sel = pts(score, guarantee, "crc")
+            x = [r["epsilon"] for r in sel]
             ax.fill_between(
                 x,
-                [p[1] - p[2] for p in pts],
-                [p[1] + p[2] for p in pts],
+                [r["hrf_p05"] for r in sel],
+                [r["hrf_p95"] for r in sel],
                 color=SERIES[k],
-                alpha=0.15,
+                alpha=0.10,
+                linewidth=0,
+            )
+            ax.fill_between(
+                x,
+                [r["hrf_ci_lo"] for r in sel],
+                [r["hrf_ci_hi"] for r in sel],
+                color=SERIES[k],
+                alpha=0.35,
                 linewidth=0,
             )
             ax.plot(
                 x,
-                mean,
+                [r["hrf_mean"] for r in sel],
                 color=SERIES[k],
                 marker=MARKERS[k],
                 markersize=6,
                 linewidth=2,
                 markeredgecolor=SURFACE,
                 markeredgewidth=0.8,
-                label=SCORE_LABELS.get(score, score),
+                label=f"{SCORE_LABELS.get(score, score)} (CRC)",
+            )
+            if k == 0:
+                for r in sel:
+                    if r["epsilon"] in labelled_eps:
+                        ax.annotate(
+                            f"{r['hrf_mean'] * 100:.0f}%",
+                            (r["epsilon"], r["hrf_mean"]),
+                            xytext=(6, -12),
+                            textcoords="offset points",
+                            fontsize=7,
+                            color=INK,
+                        )
+        if ltt_score is not None:
+            k = list(scores).index(ltt_score)
+            sel = pts(ltt_score, guarantee, "ltt")
+            ax.plot(
+                [r["epsilon"] for r in sel],
+                [r["hrf_mean"] for r in sel],
+                color=SERIES[k],
+                linestyle="--",
+                linewidth=1.5,
+                label=f"{SCORE_LABELS.get(ltt_score, ltt_score)} (LTT, δ = 0.05)",
             )
         ax.set_xscale("log")
-        ax.set_xticks([0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5])
-        ax.set_xticklabels(["0.005", "0.01", "0.02", "0.05", "0.1", "0.2", "0.5"])
+        ax.set_xticks(ticks)
+        ax.set_xticklabels([f"{t:g}" for t in ticks])
         ax.minorticks_off()
+        ax.set_xlim(0.0042, 0.6)
         ax.set_ylim(0, 1.03)
         ax.set_xlabel("guaranteed miss rate ε (log scale)", fontsize=8, color=INK)
-        ax.set_title(title, fontsize=9, color=INK)
+        ax.set_title(title, fontsize=8.5, color=INK)
+    axes[1].axvspan(prevalence, 0.6, color=GRID, alpha=0.6, linewidth=0)
+    axes[1].text(
+        prevalence * 1.08,
+        0.5,
+        f"ε ≥ prevalence ({prevalence:.0%}):\nclearing everything\nalready meets it",
+        fontsize=7,
+        color=INK_MUTED,
+    )
     axes[0].set_ylabel("human-review fraction", fontsize=8, color=INK)
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(
-        handles, labels, loc="lower center", ncol=3, fontsize=8, frameon=False, labelcolor=INK
+        handles, labels, loc="lower center", ncol=4, fontsize=8, frameon=False, labelcolor=INK
     )
     fig.suptitle(
-        f"F4 (draft) — Cost of a guaranteed miss rate ({method.upper()}, mean ± SD over seeds)",
-        fontsize=10,
+        "F4 — The cost of a guaranteed miss rate (SDNET2018, 100 seeds;"
+        " dark band 95% CI of the mean, light band 5–95% of seeds)",
+        fontsize=9.5,
         color=INK,
     )
     fig.tight_layout(rect=(0, 0.07, 1, 0.95))
