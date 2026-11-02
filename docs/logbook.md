@@ -1037,7 +1037,7 @@ positive), blind labelling (the labeller shows only the image), and
 n_cal = 2000 leaving ~300 defects. A human read-aloud by the user is still
 welcome but no longer blocks Gate 1.
 
-## Week 9 (in progress): efficiency curve
+## Week 9: efficiency curve
 
 ### Done
 
@@ -1070,10 +1070,41 @@ welcome but no longer blocks Gate 1.
   assuming humans miss nothing. Most of the config's 10-1000 sweep is therefore
   in the losing region with off-the-shelf scores.
 
-### Not done
+### LTT vs CRC (S7, delta = 0.05)
 
-- **Corruption probe not run.** Code and tests are committed
-  (`data/corruptions.py`, `scripts/run_corruption_probe.py`), but the run was
-  stopped at the user's request before any results or features were written.
-  Run it with `python scripts/run_corruption_probe.py`.
-- LTT rows are in `results/e3/e3_efficiency.json` but not yet reviewed.
+LTT costs 3-10 points of HRF over CRC (joint 0.05: 30% to 38%; conditional
+0.10: 71% to 78%). Its realised test-set exceedance is 2-14%. That is above
+delta at a few points because exceedance is measured on ~1000 finite test
+rows, while LTT bounds the true risk. At conditional eps = 0.005, LTT never
+certifies (about 305 calibration defects are too few), so HRF = 100%.
+
+### Corruption probe (controlled shift)
+
+Calibrated on clean pool rows, deployed on corrupted test rows. Run with
+`results/week9/corruption_probe.json`, S1/S5/S6, 5 kinds x severity 1/3/5,
+100 seeds. Control: calibrating on corrupted rows restores the guarantee in
+every cell (realised risk 0.050-0.052 joint, 0.094-0.103 conditional).
+
+- **Mild shift breaks the guarantee; heavy shift doesn't.** Low light and
+  JPEG at severity 1 push S1's joint miss rate to 1.39x and 1.23x epsilon,
+  exceeded in 98% and 92% of seeds. The conditional miss rate reaches 1.46x.
+  These are the realistic corruptions, and nothing in the score flags them:
+  AUC barely moves (0.755 to 0.749).
+- **Heavy corruption fails safe, by accident.** Blur, rain and motion, and
+  every severity-5 cell, push scores toward "defect", so fewer images clear.
+  Risk drops (often under 0.5x epsilon) but HRF climbs to 80-100%. The
+  guarantee survives only because the corruption happens to make the model
+  more cautious; nothing guarantees that direction.
+- **S6 behaves as designed.** Every corrupted image looks atypical, so S6
+  sends 95-100% to humans and never misses. Safe, and useless.
+- Recalibrating on corrupted data keeps validity but costs HRF (S1 joint
+  0.05: 35% clean, up to 66% under motion 5) as the score loses signal.
+
+This is the controlled version of C3: exchangeability fails silently at
+small shifts, which motivates the shift corrections of Weeks 11-13.
+
+### Housekeeping
+
+- `paper/` is now gitignored and was removed from all history (main and
+  both week branches), then force-pushed at the user's request. The drafts
+  stay local only.
