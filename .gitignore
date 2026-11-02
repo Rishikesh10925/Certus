@@ -55,3 +55,6 @@ ui/dist/
 
 # Weights & Biases
 wandb/
+
+# paper drafts stay local
+/paper/
