@@ -13,6 +13,14 @@ alone, not small-sample noise.
 Each seed draws a fresh calibration sample of n_cal source rows; the test
 set is the whole held-out site (or, for the reference, the other half of
 it).
+
+Three ways to set the thresholds (`method`), all evaluated identically:
+- vanilla: one split-CP q_hat and one CRC lambda_hat from the source draw.
+- mondrian: one per k-means cluster of the VLM features (conformal/mondrian.py).
+- weighted: one per test image, likelihood-ratio weighted
+  (conformal/weighted.py). The domain classifier does not depend on the
+  score or the level, so the caller fits it once per fold with
+  `fold_weights` and passes the result in.
 """
 
 from __future__ import annotations
@@ -22,9 +30,22 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from certus.conformal.crc import auto_clear, calibrate_crc
+from certus.conformal.crc import calibrate_crc
+from certus.conformal.mondrian import (
+    FeatureClusters,
+    calibrate_mondrian_crc,
+    calibrate_mondrian_lac,
+)
+from certus.conformal.split_cp import calibrate_lac, lac_score_matrix, lac_scores
+from certus.conformal.weighted import (
+    DomainWeights,
+    domain_weights,
+    effective_sample_size,
+    weighted_quantile,
+)
 from certus.eval.coverage import marginal_coverage
-from certus.eval.protocol import METHODS
+
+LOSO_METHODS = ("vanilla", "mondrian", "weighted")
 
 
 @dataclass(frozen=True)
@@ -40,6 +61,8 @@ class LosoSeedResult:
     coverage: float  # split CP marginal coverage on the target rows
     miss_rate: float  # CRC conditional: P(cleared | defect) on the target rows
     hrf: float  # CRC conditional: share of target rows not cleared
+    ess_frac: float = 1.0  # weighted: ESS / n of the defect rows CRC calibrates on
+    domain_auc: float = float("nan")  # weighted: source-vs-target separability
 
 
 def loso_folds(sites: NDArray[np.str_], source_sites: tuple[str, ...]) -> list[LosoFold]:
@@ -57,7 +80,41 @@ def loso_folds(sites: NDArray[np.str_], source_sites: tuple[str, ...]) -> list[L
     return folds
 
 
-def _one(
+def _draw_cal(fold: LosoFold, n_cal: int, base_seed: int, s: int) -> NDArray[np.int64]:
+    if not 0 < n_cal <= fold.source.size:
+        raise ValueError(f"n_cal={n_cal} needs 1..{fold.source.size} source rows")
+    rng = np.random.default_rng([base_seed, s])
+    cal: NDArray[np.int64] = rng.choice(fold.source, size=n_cal, replace=False)
+    return cal
+
+
+def _evaluate(
+    probs: NDArray[np.float64],
+    scores: NDArray[np.float64],
+    labels: NDArray[np.bool_],
+    test: NDArray[np.int64],
+    q: float | NDArray[np.float64],
+    lam: float | NDArray[np.float64],
+    seed: int,
+    ess_frac: float = 1.0,
+    domain_auc: float = float("nan"),
+) -> LosoSeedResult:
+    """Split-CP sets and CRC decisions on the test rows, for thresholds that
+    are either one number or one per test row."""
+    sets = lac_score_matrix(probs[test]) <= np.reshape(q, (-1, 1))
+    cleared = scores[test] > np.asarray(lam)
+    defects = labels[test]
+    return LosoSeedResult(
+        seed=seed,
+        coverage=marginal_coverage(sets, labels[test].astype(int)),
+        miss_rate=float(cleared[defects].mean()) if defects.any() else 0.0,
+        hrf=float(1.0 - cleared.mean()),
+        ess_frac=ess_frac,
+        domain_auc=domain_auc,
+    )
+
+
+def _vanilla(
     probs: NDArray[np.float64],
     scores: NDArray[np.float64],
     labels: NDArray[np.bool_],
@@ -65,21 +122,30 @@ def _one(
     test: NDArray[np.int64],
     alpha: float,
     epsilon: float,
-    rng: np.random.Generator,
     seed: int,
 ) -> LosoSeedResult:
-    y = labels.astype(int)
-    sets = METHODS["lac"](probs[cal], y[cal], probs[test], alpha, rng)
+    q = calibrate_lac(probs[cal], labels[cal].astype(int), alpha)
     cal_pos = cal[labels[cal]]
     lam = calibrate_crc(scores[cal_pos], labels[cal_pos], epsilon)
-    cleared = auto_clear(scores[test], lam)
-    defects = labels[test]
-    return LosoSeedResult(
-        seed=seed,
-        coverage=marginal_coverage(sets, y[test]),
-        miss_rate=float(cleared[defects].mean()) if defects.any() else 0.0,
-        hrf=float(1.0 - cleared.mean()),
-    )
+    return _evaluate(probs, scores, labels, test, q, lam, seed)
+
+
+def fold_weights(
+    fold: LosoFold,
+    features: NDArray[np.float32],
+    n_cal: int,
+    n_seeds: int = 100,
+    base_seed: int = 0,
+) -> list[DomainWeights]:
+    """Domain-classifier weights for each seed's calibration draw (the same
+    draws `run_loso` makes). The source side trains on the source rows
+    outside that draw, so no calibration row weights itself."""
+    out = []
+    for s in range(n_seeds):
+        cal = _draw_cal(fold, n_cal, base_seed, s)
+        train = np.setdiff1d(fold.source, cal)
+        out.append(domain_weights(features[train], features[cal], features[fold.target], seed=s))
+    return out
 
 
 def run_loso(
@@ -92,15 +158,46 @@ def run_loso(
     n_cal: int,
     n_seeds: int = 100,
     base_seed: int = 0,
+    method: str = "vanilla",
+    features: NDArray[np.float32] | None = None,
+    n_clusters: int = 4,
+    weights: list[DomainWeights] | None = None,
 ) -> list[LosoSeedResult]:
-    """Calibrate on n_cal source rows, test on every target row."""
-    if not 0 < n_cal <= fold.source.size:
-        raise ValueError(f"n_cal={n_cal} needs 1..{fold.source.size} source rows")
+    """Calibrate on n_cal source rows, test on every target row.
+    `mondrian` needs `features`; `weighted` needs `weights` from
+    `fold_weights` with the same n_cal, n_seeds and base_seed."""
+    if method not in LOSO_METHODS:
+        raise ValueError(f"method must be one of {LOSO_METHODS}, got {method!r}")
+    groups = np.full(labels.size, -1, dtype=np.intp)
+    if method == "mondrian":
+        if features is None:
+            raise ValueError("mondrian needs features")
+        clusters = FeatureClusters(features[fold.source], n_clusters, seed=base_seed)
+        for rows in (fold.source, fold.target):
+            groups[rows] = clusters.assign(features[rows])
+    if method == "weighted" and (weights is None or len(weights) != n_seeds):
+        raise ValueError("weighted needs one DomainWeights per seed (see fold_weights)")
+    test = fold.target
+    y = labels.astype(int)
     out = []
     for s in range(n_seeds):
-        rng = np.random.default_rng([base_seed, s])
-        cal = rng.choice(fold.source, size=n_cal, replace=False)
-        out.append(_one(probs, scores, labels, cal, fold.target, alpha, epsilon, rng, s))
+        cal = _draw_cal(fold, n_cal, base_seed, s)
+        if method == "vanilla":
+            out.append(_vanilla(probs, scores, labels, cal, test, alpha, epsilon, s))
+        elif method == "mondrian":
+            g = groups[cal]
+            q_g = calibrate_mondrian_lac(probs[cal], y[cal], g, alpha, n_clusters)
+            lam_g = calibrate_mondrian_crc(scores[cal], labels[cal], g, epsilon, n_clusters)
+            t = groups[test]
+            out.append(_evaluate(probs, scores, labels, test, q_g[t], lam_g[t], s))
+        else:
+            assert weights is not None
+            dw = weights[s]
+            pos = labels[cal]
+            q_t = weighted_quantile(lac_scores(probs[cal], y[cal]), dw.cal, dw.test, alpha)
+            lam_t = weighted_quantile(scores[cal][pos], dw.cal[pos], dw.test, epsilon)
+            ess = effective_sample_size(dw.cal[pos]) / int(pos.sum())
+            out.append(_evaluate(probs, scores, labels, test, q_t, lam_t, s, ess, dw.auc))
     return out
 
 
@@ -115,13 +212,13 @@ def run_in_site(
     base_seed: int = 0,
 ) -> list[LosoSeedResult]:
     """The exchangeable reference: half the target site calibrates, the
-    other half tests."""
+    other half tests (vanilla thresholds)."""
     out = []
     for s in range(n_seeds):
         rng = np.random.default_rng([base_seed, s])
         perm = rng.permutation(fold.target)
         half = perm.size // 2
-        out.append(_one(probs, scores, labels, perm[:half], perm[half:], alpha, epsilon, rng, s))
+        out.append(_vanilla(probs, scores, labels, perm[:half], perm[half:], alpha, epsilon, s))
     return out
 
 
@@ -131,6 +228,8 @@ def summarize_loso(results: list[LosoSeedResult], alpha: float, epsilon: float) 
     cov = np.array([r.coverage for r in results])
     miss = np.array([r.miss_rate for r in results])
     hrf = np.array([r.hrf for r in results])
+    ess = np.array([r.ess_frac for r in results])
+    auc = np.array([r.domain_auc for r in results])
     return {
         "coverage_mean": float(cov.mean()),
         "coverage_gap": float(cov.mean() - (1.0 - alpha)),
@@ -139,5 +238,8 @@ def summarize_loso(results: list[LosoSeedResult], alpha: float, epsilon: float) 
         "miss_rate_ratio": float(miss.mean() / epsilon),
         "miss_exceed_frac": float((miss > epsilon).mean()),
         "hrf_mean": float(hrf.mean()),
+        "ess_frac_mean": float(ess.mean()),
+        "ess_frac_min": float(ess.min()),
+        "domain_auc_mean": float(auc.mean()),
         "n_seeds": float(cov.size),
     }
