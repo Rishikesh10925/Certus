@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from certus.conformal.crc import calibrate_crc
+from certus.conformal.localized import localized_quantile, row_ess, similarity_kernel
 from certus.conformal.mondrian import FeatureClusters, calibrate_mondrian_crc
 from certus.conformal.quantile import conformal_quantile
 from certus.conformal.weighted import (
@@ -138,3 +139,45 @@ def test_run_loso_checks_method_inputs() -> None:
         run_loso(fold, probs, s, y, 0.1, 0.1, 100, method="mondrian")
     with pytest.raises(ValueError, match="DomainWeights"):
         run_loso(fold, probs, s, y, 0.1, 0.1, 100, method="weighted")
+
+
+def test_constant_kernel_matches_conformal_quantile() -> None:
+    s = np.random.default_rng(3).normal(size=99)
+    for alpha in (0.1, 0.05):
+        got = localized_quantile(s, np.ones((4, 99)), alpha)
+        assert np.all(got == conformal_quantile(s, alpha))
+
+
+def test_adaptive_bandwidth_puts_kth_neighbour_at_e_minus_one() -> None:
+    rng = np.random.default_rng(4)
+    cal, test = rng.normal(size=(200, 8)), rng.normal(size=(5, 8))
+    k = similarity_kernel(cal, test, k_frac=0.1)
+    assert k.shape == (5, 200)
+    kth = np.sort(k, axis=1)[:, ::-1][:, 19]  # 20th largest = 20th nearest
+    assert np.allclose(kth, np.exp(-1.0))
+    assert np.all(row_ess(k) < 200)
+    with pytest.raises(ValueError, match="k_frac"):
+        similarity_kernel(cal, test, k_frac=0.0)
+
+
+def test_localized_recovers_a_covariate_shifted_site() -> None:
+    sites, y, s, probs, feats = _shifted_sites()
+    fold = next(f for f in loso_folds(sites, ("a", "b", "c")) if f.site == "c")
+    res = run_loso(
+        fold,
+        probs,
+        s,
+        y,
+        0.1,
+        0.1,
+        1200,
+        n_seeds=10,
+        method="localized",
+        features=feats,
+        k_frac=0.1,
+    )
+    summ = summarize_loso(res, 0.1, 0.1)
+    # The hard region is 15% of the source, so the window must be narrower
+    # than that to localise; at k_frac = 0.25 the ratio is back near 2x.
+    assert summ["miss_rate_ratio"] < 1.0  # vanilla is above 3x on this site
+    assert 0.0 < summ["ess_frac_mean"] < 1.0

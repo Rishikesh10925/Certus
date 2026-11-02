@@ -21,6 +21,8 @@ Three ways to set the thresholds (`method`), all evaluated identically:
   (conformal/weighted.py). The domain classifier does not depend on the
   score or the level, so the caller fits it once per fold with
   `fold_weights` and passes the result in.
+- localized: one per test image, weighted by latent similarity to each
+  calibration row (conformal/localized.py).
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from certus.conformal.crc import calibrate_crc
+from certus.conformal.localized import localized_quantile, row_ess, similarity_kernel
 from certus.conformal.mondrian import (
     FeatureClusters,
     calibrate_mondrian_crc,
@@ -45,7 +48,7 @@ from certus.conformal.weighted import (
 )
 from certus.eval.coverage import marginal_coverage
 
-LOSO_METHODS = ("vanilla", "mondrian", "weighted")
+LOSO_METHODS = ("vanilla", "mondrian", "weighted", "localized")
 
 
 @dataclass(frozen=True)
@@ -61,7 +64,7 @@ class LosoSeedResult:
     coverage: float  # split CP marginal coverage on the target rows
     miss_rate: float  # CRC conditional: P(cleared | defect) on the target rows
     hrf: float  # CRC conditional: share of target rows not cleared
-    ess_frac: float = 1.0  # weighted: ESS / n of the defect rows CRC calibrates on
+    ess_frac: float = 1.0  # weighted, localized: ESS / n of the defect rows CRC uses
     domain_auc: float = float("nan")  # weighted: source-vs-target separability
 
 
@@ -162,16 +165,18 @@ def run_loso(
     features: NDArray[np.float32] | None = None,
     n_clusters: int = 4,
     weights: list[DomainWeights] | None = None,
+    k_frac: float = 0.5,
 ) -> list[LosoSeedResult]:
     """Calibrate on n_cal source rows, test on every target row.
-    `mondrian` needs `features`; `weighted` needs `weights` from
-    `fold_weights` with the same n_cal, n_seeds and base_seed."""
+    `mondrian` and `localized` need `features`; `weighted` needs `weights`
+    from `fold_weights` with the same n_cal, n_seeds and base_seed."""
     if method not in LOSO_METHODS:
         raise ValueError(f"method must be one of {LOSO_METHODS}, got {method!r}")
     groups = np.full(labels.size, -1, dtype=np.intp)
+    if method in ("mondrian", "localized") and features is None:
+        raise ValueError(f"{method} needs features")
     if method == "mondrian":
-        if features is None:
-            raise ValueError("mondrian needs features")
+        assert features is not None
         clusters = FeatureClusters(features[fold.source], n_clusters, seed=base_seed)
         for rows in (fold.source, fold.target):
             groups[rows] = clusters.assign(features[rows])
@@ -190,6 +195,15 @@ def run_loso(
             lam_g = calibrate_mondrian_crc(scores[cal], labels[cal], g, epsilon, n_clusters)
             t = groups[test]
             out.append(_evaluate(probs, scores, labels, test, q_g[t], lam_g[t], s))
+        elif method == "localized":
+            assert features is not None
+            pos = cal[labels[cal]]
+            k_all = similarity_kernel(features[cal], features[test], k_frac)
+            k_pos = similarity_kernel(features[pos], features[test], k_frac)
+            q_t = localized_quantile(lac_scores(probs[cal], y[cal]), k_all, alpha)
+            lam_t = localized_quantile(scores[pos], k_pos, epsilon)
+            ess = float(row_ess(k_pos).mean()) / pos.size
+            out.append(_evaluate(probs, scores, labels, test, q_t, lam_t, s, ess))
         else:
             assert weights is not None
             dw = weights[s]
@@ -236,6 +250,8 @@ def summarize_loso(results: list[LosoSeedResult], alpha: float, epsilon: float) 
         "coverage_below_frac": float((cov < 1.0 - alpha).mean()),
         "miss_rate_mean": float(miss.mean()),
         "miss_rate_ratio": float(miss.mean() / epsilon),
+        "miss_ratio_p05": float(np.percentile(miss, 5) / epsilon),
+        "miss_ratio_p95": float(np.percentile(miss, 95) / epsilon),
         "miss_exceed_frac": float((miss > epsilon).mean()),
         "hrf_mean": float(hrf.mean()),
         "ess_frac_mean": float(ess.mean()),
