@@ -1185,3 +1185,80 @@ Conditional CRC miss ratio (realised / epsilon), LOSO vs in-site:
 | F4 publication-ready | yes, pending the user's review |
 | First evidence of the shift failure | yes: wall fold, 2-3x epsilon, 100% of seeds |
 | Per-site coverage-gap table | `results/e4/loso_v1.md` |
+
+## Week 11: shift corrections (Mondrian and weighted CP)
+
+### What was built
+
+- `conformal/mondrian.py`: per-group split CP and conditional CRC. Under
+  LOSO the held-out site has no calibration rows, so groups are k-means
+  clusters of the CLIP features fit on the source sites (no labels); a test
+  image takes its nearest cluster's threshold. A group too small for the
+  level gets +inf (all to humans).
+- `conformal/weighted.py`: Tibshirani et al. weighted CP. A per-test-image
+  threshold is the weighted (1 - a) quantile with a point mass at +inf.
+  With indicator loss on defect-only rows this is also conditional CRC, so
+  one function serves both. Weights come from a logistic source-vs-target
+  domain classifier on CLIP features, cross-fitted: source side trains on
+  source rows outside the calibration draw, target halves are weighted by
+  the classifier that did not see them. ESS/n and the classifier AUC are
+  logged every seed.
+- `eval/loso.py`: `run_loso(method=vanilla|mondrian|weighted)` and
+  `fold_weights`. Vanilla reproduces `loso_v1` exactly (max difference 0).
+- Tests (`tests/test_shift_corrections.py`): equal weights give exactly
+  `conformal_quantile` and `calibrate_crc`; true likelihood ratios restore
+  coverage under a known covariate shift; on a synthetic site shifted
+  toward hard images vanilla misses 4.4x eps, Mondrian and weighted are
+  back near 1x. 202 tests pass.
+
+Run: `scripts/run_loso_corrections.py` -> `results/e4/loso_v2.json`,
+`results/e4/loso_v2.md`. Same pool, folds, scores (S1, S2), levels
+(0.10, 0.05), n_cal = 1000, 100 seeds as v1. Mondrian at k = 2, 4, 8.
+
+### Recovered miss rate, side by side with the uncorrected gap
+
+Conditional CRC miss ratio (realised / eps), with HRF, on the two folds
+where vanilla broke. In-site is the exchangeable reference.
+
+| score, level, site | in-site | vanilla | Mondrian k2 | k4 | k8 | weighted |
+|---|---|---|---|---|---|---|
+| S1 0.10 wall | 0.90 / 0.81 | **2.52** / 0.55 | 2.08 / 0.61 | 2.34 / 0.55 | 1.47 / 0.73 | 1.46 / 0.74 |
+| S1 0.05 wall | 0.78 / 0.90 | **3.20** / 0.69 | 1.99 / 0.79 | 2.50 / 0.74 | 1.14 / 0.89 | 1.26 / 0.87 |
+| S2 0.10 wall | 0.89 / 0.83 | **1.95** / 0.69 | 1.30 / 0.73 | 1.87 / 0.64 | 1.13 / 0.79 | **0.65** / 0.90 |
+| S2 0.05 wall | 0.81 / 0.92 | **1.99** / 0.82 | 1.29 / 0.85 | 1.90 / 0.84 | 0.59 / 0.95 | **0.21** / 0.97 |
+| S2 0.10 deck | 0.86 / 0.73 | **1.20** / 0.65 | 1.02 / 0.69 | 1.11 / 0.66 | 0.62 / 0.81 | **0.39** / 0.87 |
+| S2 0.05 deck | 0.74 / 0.84 | **1.08** / 0.80 | 0.73 / 0.85 | 0.66 / 0.88 | 0.27 / 0.95 | **0.08** / 0.97 |
+
+Share of seeds over eps: vanilla 100% on every wall row; weighted 1-15%
+for S2 but still 87-94% for S1; Mondrian k8 2-96%.
+
+### Findings
+
+- **Weighted CP repairs S2 fully and S1 only partly.** S2 goes from 2x eps
+  to 0.2-0.65x on walls and from 1.2x to 0.4x on decks. S1 on walls drops
+  from 2.5-3.2x to 1.3-1.5x but still breaks in most seeds. Weighting
+  assumes the score's behaviour given the image features is the same
+  across sites; for S1 (zero-shot prompts) that seems not to hold on walls.
+  Worth one check in Week 12 (a nonlinear domain classifier, or S1 being
+  genuinely site-dependent).
+- **Mondrian needs fine clusters.** k = 2 and 4 barely help; the coarse
+  clusters split the source sites, not the image types that drive misses.
+  k = 8 recovers most of the gap (S2 on walls 0.59-1.13x) but is not
+  monotone in k, so k is a tuning choice the paper must report.
+- **Recovery costs review, and that cost was hidden.** Corrected HRF on
+  walls is 0.74-0.97 against vanilla's 0.55-0.82. The in-site reference
+  needs 0.81-0.92, so vanilla's low HRF was false efficiency: it cleared
+  images it had no right to clear.
+- **The sites are almost perfectly separable** in CLIP space (domain AUC
+  0.96-1.00), yet ESS/n stays at 0.42-0.63 (worst seed 0.35): weights are
+  uneven but have not collapsed. CBRI (AUC 1.00) still fails safe, HRF ~1.
+- **Corrections can over-correct.** On pavement and deck folds where
+  vanilla was already valid, both push the miss rate further below eps and
+  raise HRF (S1 pavement 0.80 -> 0.91 weighted).
+- **Marginal coverage**: weighted closes S2's CBRI gap (-0.28 -> -0.06);
+  Mondrian makes it worse (-0.43 to -0.58), since CBRI images all land in
+  clusters whose thresholds were set on concrete close-ups.
+
+Next (Week 12): localized CP, the four-method comparison, F5, and the
+pre-registered decision. The shift gap is well above the 2-point bar on
+the asymmetric miss rate, so the shift contribution looks real.
