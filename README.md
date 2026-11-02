@@ -41,7 +41,7 @@ The frozen VLM never trains on the critical path — it's scored once per calibr
 
 ### The three contribution claims
 
-Locked in Week 1 (verbatim in [`paper/intro.tex`](paper/intro.tex); not to be changed without deliberately reopening scope):
+Locked in Week 1; not to be changed without deliberately reopening scope:
 
 1. **C1** — A systematic comparison of nonconformity scores for VLM-based defect detection, establishing which score family yields the tightest risk-controlled triage.
 2. **C2** — The efficiency curve for risk-controlled inspection: the human-review fraction required to hold missed defects below ε, across two orders of magnitude of ε. This is the figure industry cares about.
@@ -115,7 +115,7 @@ certus/
 ├── data/                # DVC pointers only -- no raw data in git (see data/README.md)
 ├── docs/                # Technical blueprint, work plan, logbook, audit reports
 ├── notebooks/           # Exploration only -- never on the critical path
-├── paper/                # LaTeX source; intro.tex holds the three locked contribution claims
+├── paper/                # LaTeX source (kept local, gitignored)
 ├── scripts/              # audit_data.py and other one-off tooling
 ├── service/              # FastAPI inspection service -- Week 14, not yet built
 ├── src/certus/
