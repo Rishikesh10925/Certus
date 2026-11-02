@@ -1122,3 +1122,66 @@ small shifts, which motivates the shift corrections of Weeks 11-13.
   yes/no check carries no information. The class-level match is the real
   evidence. Caveat: n = 20 and the same labeller, so this shows consistency,
   not correctness.
+
+## Week 10: F4 final and LOSO harness (Gate)
+
+### F4, final
+
+`paper/figures/F4_efficiency.png` (local, `paper/` is gitignored; regenerate
+with `python scripts/run_e3.py`). Changes from the draft:
+
+- 95% percentile bootstrap CI of the mean HRF over seeds (dark band) and
+  the 5-95% seed range (light band, what a single deployment sees).
+  `summarize_crc` now reports `hrf_ci_lo/hi` and `hrf_p05/p95`.
+- The CI is narrow, under +/-0.5 points (S7 conditional 0.05: 83.4%,
+  CI 82.9-83.9%). The seed range is the honest uncertainty: 79-87%.
+- S7 under LTT added, dashed.
+- Joint points with epsilon >= prevalence (15%) are dropped and shaded,
+  since clearing everything already meets them.
+
+### LOSO harness
+
+`src/certus/eval/loso.py` has the fold generator (`loso_folds`), the LOSO
+run, and an in-site exchangeable reference. `scripts/run_loso.py` writes
+`results/e4/loso_v1.json` and the per-site table `results/e4/loso_v1.md`.
+
+Sites: SDNET2018's three structure types (deck 783, pavement 1294, wall
+923, from the 3000-image pool) plus CBRI (175 gold images, target only,
+never calibrated on). Scores S1 and S2, the only ones cached on CBRI.
+n_cal = 1000 source rows, 100 seeds, split CP (LAC) and conditional CRC at
+alpha = epsilon in {0.10, 0.05}.
+
+### First LOSO pass: per-site gap
+
+Conditional CRC miss ratio (realised / epsilon), LOSO vs in-site:
+
+| held-out site | S1 @0.10 | S1 @0.05 | S2 @0.10 | S2 @0.05 |
+|---|---|---|---|---|
+| wall | **2.52** / 0.90 | **3.20** / 0.78 | **1.95** / 0.89 | **1.99** / 0.81 |
+| deck | 0.50 / 0.93 | 0.61 / 0.89 | **1.20** / 0.86 | **1.08** / 0.74 |
+| pavement | 0.22 / 0.86 | 0.01 / 0.83 | 0.09 / 0.99 | 0.15 / 0.93 |
+| CBRI | 0.00 / 0.91 | 0.00 / 0.91 | 0.05 / 0.99 | 0.00 / 0.97 |
+
+- **The guarantee breaks under real site shift.** Holding out walls,
+  every seed exceeds epsilon for both scores, at 2-3.2x. S2 also breaks on
+  decks (100% of seeds at 0.10, 39% at 0.05).
+- **Every in-site reference is valid** (miss ratio 0.74-0.99, coverage gap
+  within +/-0.01), so the break is the shift, not sample size.
+- **Shift also wastes review where it doesn't break**: holding out
+  pavement, S1 still holds but HRF rises from 56% to 80%.
+- **CBRI fails safe.** Whole-building photos all look defect-like to
+  scores calibrated on concrete close-ups, so 100% go to humans. Valid and
+  useless, the same pattern as heavy corruption in Week 9.
+- **Marginal coverage hides the failure.** S1 holding out walls has a
+  split-CP coverage gap of only -0.03 while the miss rate on defects is
+  2.5x epsilon. Coverage gains on clean images offset losses on defects.
+  The paper should report the asymmetric miss rate, not marginal coverage.
+  (S2 on CBRI is the one big marginal break: -0.28 at alpha = 0.10.)
+
+### Gate
+
+| criterion | status |
+|---|---|
+| F4 publication-ready | yes, pending the user's review |
+| First evidence of the shift failure | yes: wall fold, 2-3x epsilon, 100% of seeds |
+| Per-site coverage-gap table | `results/e4/loso_v1.md` |
