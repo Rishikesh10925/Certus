@@ -1108,3 +1108,12 @@ small shifts, which motivates the shift corrections of Weeks 11-13.
 - `paper/` is now gitignored and was removed from all history (main and
   both week branches), then force-pushed at the user's request. The drafts
   stay local only.
+
+### Decisions (2026-11-02)
+
+- **Confirmed by the user:** SDNET2018 (human labels) is the primary
+  dataset. CBRI is the unseen target site for the shift study and the
+  label-noise dataset. This is how Weeks 5-9 already ran.
+- Intra-labeller check set up: 20 gold images (seed 0), blanked and
+  shuffled, in `data/gold/relabel_check_v1.csv`. Results pending the
+  user's blind re-label (`scripts/relabel_check.py compare`).
