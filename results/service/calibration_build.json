@@ -1,0 +1,8 @@
+{
+ "n_images": 8413,
+ "features_seconds": 0.12265869999828283,
+ "calibration_seconds": 2.671563800002332,
+ "features_were_cached": true,
+ "online_vs_stored_s1_max_abs_diff": 4.440892098500626e-15,
+ "calibration_version": "v1-aeaa352b"
+}

@@ -18,6 +18,8 @@ repos:
           - transformers==4.51.3
           - scikit-learn==1.4.1.post1
           - pillow==10.2.0
+          - fastapi==0.110.0
+          - pydantic==2.13.4
 
   - repo: https://github.com/kynan/nbstripout
     rev: 0.7.1
