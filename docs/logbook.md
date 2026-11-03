@@ -1262,3 +1262,99 @@ for S2 but still 87-94% for S1; Mondrian k8 2-96%.
 Next (Week 12): localized CP, the four-method comparison, F5, and the
 pre-registered decision. The shift gap is well above the 2-point bar on
 the asymmetric miss rate, so the shift contribution looks real.
+
+## Week 12: localized CP, four-method comparison, F5, pivot gate
+
+### What was built
+
+- `conformal/localized.py`: per-test-image weights from CLIP similarity,
+  H_i(x) = exp(-(d_i / h(x))^2) with d = 1 - cosine and an adaptive
+  bandwidth h(x) = distance to the k-th nearest calibration row,
+  k = k_frac * n. A fixed bandwidth fails here: CLIP distances sit in
+  0.03-0.12, so any h small enough to localise leaves almost no
+  calibration mass and the test point's own weight forces +inf. This is
+  plain localized CP (Guan 2023) without the randomised correction, so
+  validity is approximate; the runs measure it. Prerequisite from the
+  blueprint (domain AUC check) met in Week 11: AUC 0.96-1.00.
+- `eval/loso.py`: `method="localized"`; `summarize_loso` now reports
+  the 5th/95th seed percentiles of the miss ratio.
+- `scripts/run_loso_corrections.py` -> `results/e4/loso_v3.{json,md}`:
+  all four methods, Mondrian k in 2/4/8, localized k_frac in
+  0.05/0.1/0.25, same pool, folds and seeds as v1/v2.
+- `scripts/check_concept_shift.py` -> `results/e4/concept_shift.json`.
+- F5: `figure_f5` + `scripts/make_f5.py` -> `paper/figures/F5_loso.png`
+  (local). Miss ratio per held-out site, per method, 5-95% seed whiskers.
+- 205 tests pass.
+
+### Four methods on the folds that broke
+
+Conditional CRC miss ratio / HRF (100 seeds); share of seeds over eps in
+brackets.
+
+| score, eps, site | in-site | vanilla | Mondrian k8 | weighted | localized 5% | localized 10% |
+|---|---|---|---|---|---|---|
+| S1 0.10 wall | 0.90 / 0.81 | 2.52 / 0.55 (100%) | 1.47 / 0.73 (96%) | 1.46 / 0.74 (94%) | **0.70 / 0.85 (10%)** | 1.14 / 0.77 (64%) |
+| S1 0.05 wall | 0.78 / 0.90 | 3.20 / 0.69 (100%) | 1.14 / 0.89 (62%) | 1.26 / 0.87 (87%) | **0.13 / 0.99 (0%)** | 0.28 / 0.97 (0%) |
+| S2 0.10 wall | 0.89 / 0.83 | 1.95 / 0.69 (100%) | 1.13 / 0.79 (61%) | 0.65 / 0.90 (15%) | 0.35 / 0.92 (0%) | 0.63 / 0.88 (4%) |
+| S2 0.05 wall | 0.81 / 0.92 | 1.99 / 0.82 (100%) | 0.59 / 0.95 (2%) | 0.21 / 0.97 (1%) | 0.10 / 1.00 (0%) | 0.14 / 0.99 (0%) |
+| S2 0.10 deck | 0.86 / 0.73 | 1.20 / 0.65 (100%) | 0.62 / 0.81 (21%) | 0.39 / 0.87 (1%) | 0.07 / 0.96 (0%) | 0.30 / 0.89 (0%) |
+
+### Findings
+
+- **Localized CP at k = 5% is the only method valid on every fold**,
+  including S1 on walls, where Mondrian and weighted both still break.
+  It localises harder than the others: each wall image is calibrated
+  against its own few nearest source images.
+- **The price is review.** At eps = 0.05 localized sends 99-100% of
+  walls to a human, so it is valid by being close to useless there. At
+  eps = 0.10 it is the best trade on S1 walls: HRF 0.85 against the
+  in-site 0.81. Narrowing the window buys validity with HRF in every
+  row; k_frac is the knob, and the paper has to report the sweep.
+- **Weighted is the best balance for S2** (valid on walls and decks at
+  HRF 0.87-0.97, near the in-site level). Mondrian helps only at 8
+  clusters and is not monotone in k.
+- **Concept-shift check, and a correction to the Week 11 reading.** A
+  logistic P(defect | CLIP) fit on the source sites predicts 11.8%
+  defects on walls against an actual 21.3% (in-site fit: 21.5%); decks
+  are stable (17.3% vs 16.6%), and pavement shifts the safe way (20.0% vs
+  10.0%). I first read this as a true concept shift that no reweighting
+  could fix. Localized CP fixing S1 on walls contradicts that: the check
+  uses a linear model, so part of what it flags is a nonlinear covariate
+  shift that a linear domain classifier (weighted CP) cannot see but a
+  local kernel can. The honest statement is: P(defect | x) is not
+  linearly stable across sites; how much is true concept shift is not
+  settled by this data.
+- **Over-correction where vanilla was valid**: on pavement and CBRI all
+  corrections push HRF toward 0.9-1.0. Corrections should be applied
+  when a domain check flags shift, not always.
+- In-site whiskers are wide at eps = 0.05 (half-site calibration sets are
+  small), which is why F5 shows seed ranges, not just means.
+
+### Gate: is the shift contribution real? Decision: yes, no pivot
+
+Pre-registered criterion (work plan, Week 12): is the LOSO coverage gap
+under 2 points (no real shift), or a genuine, reportable finding?
+
+- On the pre-registered metric itself, marginal split-CP coverage, vanilla
+  LOSO misses nominal by 2.9-3.1 points (S1) and 7.6 points (S2) on walls,
+  and by 27.8 points for S2 on CBRI at alpha = 0.10. Above the 2-point bar.
+- On the asymmetric metric the paper argues for, the break is far larger:
+  2.0-3.2x eps on walls in 100% of seeds, against a valid in-site
+  reference (0.78-0.90x).
+
+So the shift contribution stays. Framing for Part 3 of the paper:
+
+1. Site shift breaks the missed-defect guarantee by 2-3x while marginal
+   coverage moves by only 3 points; report the asymmetric miss rate.
+2. All three corrections recover validity to different degrees, and every
+   recovery is paid for in human review. The vanilla method's lower HRF
+   under shift was false efficiency.
+3. Localized CP is the most robust and the most expensive, with k as the
+   trade-off knob; weighted CP is the best balance where its linear
+   domain model is adequate (S2); Mondrian is the weakest.
+4. Limitations: P(defect | x) is not linearly stable on walls; localized
+   CP is approximately valid only; corrections over-correct on folds that
+   did not need them.
+
+Next (Week 13): F6 (recovered coverage against efficiency cost, all four
+methods), F7 (class-conditional coverage heatmap), SSCV, Results section.
