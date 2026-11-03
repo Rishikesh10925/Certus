@@ -386,8 +386,9 @@ def figure_f5(
                 xs = [s_idx - 0.4 + width * (m_idx + 0.5) for s_idx in range(len(sites))]
                 sel = [cell[(score, level, site, method)] for site in sites]
                 mean = [r["miss_rate_ratio"] for r in sel]
-                lo = [r["miss_rate_ratio"] - r["miss_ratio_p05"] for r in sel]
-                hi = [r["miss_ratio_p95"] - r["miss_rate_ratio"] for r in sel]
+                # A heavy lower tail can put the mean under its 5th percentile.
+                lo = [max(0.0, r["miss_rate_ratio"] - r["miss_ratio_p05"]) for r in sel]
+                hi = [max(0.0, r["miss_ratio_p95"] - r["miss_rate_ratio"]) for r in sel]
                 ax.errorbar(
                     xs,
                     mean,
