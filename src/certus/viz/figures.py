@@ -330,3 +330,101 @@ def figure_f3(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=200, facecolor=SURFACE)
     plt.close(fig)
+
+
+LOSO_LABELS = {
+    "in_site": "In-site reference (exchangeable)",
+    "vanilla": "Vanilla CRC",
+    "mondrian_k8": "Mondrian, 8 clusters",
+    "weighted": "Weighted (domain classifier)",
+    "localized_0.05": "Localized, k = 5%",
+    "localized_0.1": "Localized, k = 10%",
+    "localized_0.25": "Localized, k = 25%",
+}
+SITE_LABELS = {"deck": "deck", "pavement": "pavement", "wall": "wall", "cbri": "CBRI"}
+
+
+def figure_f5(
+    rows: Sequence[dict[str, Any]],
+    out_path: Path,
+    methods: Sequence[str],
+    scores: Sequence[str] = ("s1", "s2"),
+    levels: Sequence[float] = (0.10, 0.05),
+    sites: Sequence[str] = ("deck", "pavement", "wall", "cbri"),
+) -> None:
+    """F5 -- the shift failure and its correction: realised miss rate on
+    the held-out site's defects as a multiple of epsilon, per site and
+    method, one panel per (score, epsilon). Dots are means over seeds,
+    whiskers the 5-95% seed range; the dashed line at 1 is the guarantee.
+    The in-site reference is grey and hollow, so the shift is the distance
+    from it. Methods keep their colour and marker across panels."""
+    cell = {(r["score"], r["level"], r["site"], r["method"]): r for r in rows}
+    fig, axes = plt.subplots(
+        len(scores), len(levels), figsize=(10.0, 3.3 * len(scores)), sharex=True, sharey=True
+    )
+    fig.patch.set_facecolor(SURFACE)
+    width = 0.8 / len(methods)
+    top = 1.05 * max(
+        cell[(score, level, site, method)]["miss_ratio_p95"]
+        for score in scores
+        for level in levels
+        for site in sites
+        for method in methods
+    )
+    for i, score in enumerate(scores):
+        for j, level in enumerate(levels):
+            ax = axes[i][j]
+            _style(ax)
+            ax.axhline(1.0, color=INK, linestyle="--", linewidth=1.0)
+            k_series = 0
+            for m_idx, method in enumerate(methods):
+                ref = method == "in_site"
+                colour = INK_MUTED if ref else SERIES[k_series]
+                marker = "o" if ref else MARKERS[k_series]
+                if not ref:
+                    k_series += 1
+                xs = [s_idx - 0.4 + width * (m_idx + 0.5) for s_idx in range(len(sites))]
+                sel = [cell[(score, level, site, method)] for site in sites]
+                mean = [r["miss_rate_ratio"] for r in sel]
+                lo = [r["miss_rate_ratio"] - r["miss_ratio_p05"] for r in sel]
+                hi = [r["miss_ratio_p95"] - r["miss_rate_ratio"] for r in sel]
+                ax.errorbar(
+                    xs,
+                    mean,
+                    yerr=[lo, hi],
+                    fmt=marker,
+                    color=colour,
+                    markersize=6,
+                    markerfacecolor=SURFACE if ref else colour,
+                    markeredgecolor=colour if ref else SURFACE,
+                    markeredgewidth=1.2 if ref else 0.8,
+                    elinewidth=1.2,
+                    capsize=0,
+                    label=LOSO_LABELS.get(method, method),
+                )
+            ax.set_xticks(range(len(sites)))
+            ax.set_xticklabels([SITE_LABELS.get(s, s) for s in sites], fontsize=8)
+            ax.tick_params(axis="x", grid_alpha=0)  # no lines through the middle dots
+            ax.set_ylim(0, top)
+            ax.set_title(
+                f"{SCORE_LABELS.get(score, score)}, ε = {level:g}", fontsize=8.5, color=INK
+            )
+            if j == 0:
+                ax.set_ylabel("miss rate on defects / ε", fontsize=8, color=INK)
+            if i == len(scores) - 1:
+                ax.set_xlabel("held-out site", fontsize=8, color=INK)
+    axes[0][0].text(-0.45, 1.04, "guarantee (1×)", fontsize=7, color=INK_MUTED, va="bottom")
+    handles, labels = axes[0][0].get_legend_handles_labels()
+    fig.legend(
+        handles, labels, loc="lower center", ncol=3, fontsize=8, frameon=False, labelcolor=INK
+    )
+    fig.suptitle(
+        "F5 — Site shift breaks the miss-rate guarantee, and what each correction recovers\n"
+        "leave-one-site-out, conditional CRC, 100 seeds; dots are means, whiskers 5–95% of seeds",
+        fontsize=9.5,
+        color=INK,
+    )
+    fig.tight_layout(rect=(0, 0.08, 1, 0.95))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    plt.close(fig)
