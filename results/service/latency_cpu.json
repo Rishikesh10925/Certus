@@ -1,0 +1,111 @@
+{
+ "device": "cpu",
+ "epsilon": 0.05,
+ "n_requests": 1000,
+ "client": "single sequential httpx client, same machine",
+ "startup_seconds": 11.771883299996261,
+ "budget_ms": 400.0,
+ "p95_within_budget": false,
+ "latency_ms": {
+  "client_total": {
+   "p50": 188.56685000355355,
+   "p95": 606.4772250021629,
+   "p99": 1297.4884459963505,
+   "mean": 263.27344450000237,
+   "max": 4173.553199994785
+  },
+  "server_decode": {
+   "p50": 0.9014999995997641,
+   "p95": 1.8017849994066624,
+   "p99": 6.5283330019155965,
+   "mean": 1.3542947999885655,
+   "max": 114.43539999891073
+  },
+  "server_embed": {
+   "p50": 158.67209999851184,
+   "p95": 550.1203250038085,
+   "p99": 1170.5812499957387,
+   "mean": 231.63927610012615,
+   "max": 4052.52979999932
+  },
+  "server_score": {
+   "p50": 0.19574999896576628,
+   "p95": 0.31634000006306445,
+   "p99": 0.5035159979888701,
+   "mean": 0.2280789999931585,
+   "max": 14.43450000078883
+  },
+  "server_total": {
+   "p50": 184.41765000170562,
+   "p95": 591.5833899987773,
+   "p99": 1281.7210789993987,
+   "mean": 257.68655819995183,
+   "max": 4072.977499999979
+  },
+  "client_total_sdnet2018": {
+   "p50": 188.01179999718443,
+   "p95": 617.9817400057794,
+   "p99": 1298.7959039965062,
+   "mean": 263.94617819857046,
+   "max": 4173.553199994785
+  },
+  "client_total_cbri": {
+   "p50": 210.62999999412568,
+   "p95": 369.6818699987488,
+   "p99": 406.4997000012955,
+   "mean": 234.69688695647915,
+   "max": 416.25670000212267
+  }
+ },
+ "outcome_by_cluster": {
+  "deck": {
+   "n": 215,
+   "n_defects": 31,
+   "miss_rate": 0.06451612903225806,
+   "hrf": 0.9209302325581395,
+   "shift_flag_rate": 0.009302325581395349,
+   "decisions": {
+    "AUTO_CLEAR": 17,
+    "FLAG": 16,
+    "ESCALATE": 182
+   }
+  },
+  "pavement": {
+   "n": 434,
+   "n_defects": 43,
+   "miss_rate": 0.046511627906976744,
+   "hrf": 0.6589861751152074,
+   "shift_flag_rate": 0.009216589861751152,
+   "decisions": {
+    "AUTO_CLEAR": 148,
+    "FLAG": 27,
+    "ESCALATE": 259
+   }
+  },
+  "pooled": {
+   "n": 23,
+   "n_defects": 22,
+   "miss_rate": 0.0,
+   "hrf": 1.0,
+   "shift_flag_rate": 1.0,
+   "decisions": {
+    "AUTO_CLEAR": 0,
+    "FLAG": 20,
+    "ESCALATE": 3
+   }
+  },
+  "wall": {
+   "n": 328,
+   "n_defects": 68,
+   "miss_rate": 0.058823529411764705,
+   "hrf": 0.8658536585365854,
+   "shift_flag_rate": 0.009146341463414634,
+   "decisions": {
+    "AUTO_CLEAR": 44,
+    "FLAG": 12,
+    "ESCALATE": 272
+   }
+  }
+ },
+ "metrics_snapshot": "# HELP certus_inspections_total Inspections by triage decision.\n# TYPE certus_inspections_total counter\ncertus_inspections_total{decision=\"AUTO_CLEAR\"} 209\ncertus_inspections_total{decision=\"FLAG\"} 75\ncertus_inspections_total{decision=\"ESCALATE\"} 716\n# HELP certus_shift_flags_total Images outside their cluster's calibration set.\n# TYPE certus_shift_flags_total counter\ncertus_shift_flags_total 32\n# HELP certus_audit_sampled_total Auto-cleared images held for audit.\n# TYPE certus_audit_sampled_total counter\ncertus_audit_sampled_total 12\n# HELP certus_feedback_total Human labels received.\n# TYPE certus_feedback_total counter\ncertus_feedback_total 0\n# HELP certus_feedback_missed_defects_total Auto-cleared images a human labelled defective.\n# TYPE certus_feedback_missed_defects_total counter\ncertus_feedback_missed_defects_total 0\n# HELP certus_inspect_latency_seconds Server-side /v1/inspect latency.\n# TYPE certus_inspect_latency_seconds summary\ncertus_inspect_latency_seconds{quantile=\"0.5\"} 0.184418\ncertus_inspect_latency_seconds{quantile=\"0.95\"} 0.591583\ncertus_inspect_latency_seconds{quantile=\"0.99\"} 1.281721\ncertus_inspect_latency_seconds_sum 257.686558\ncertus_inspect_latency_seconds_count 1000\n# HELP certus_calibration_info Loaded calibration artifact.\n# TYPE certus_calibration_info gauge\ncertus_calibration_info{version=\"v1-aeaa352b\",escalate_on_shift=\"True\"} 1\n"
+}
