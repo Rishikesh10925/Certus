@@ -1,0 +1,38 @@
+{
+ "experiment": "concept_shift_check",
+ "rows": [
+  {
+   "site": "deck",
+   "n": 783,
+   "actual_prevalence": 0.16602809706257982,
+   "predicted_prevalence_loso": 0.17324098915739608,
+   "predicted_prevalence_in_site": 0.1649649101425708,
+   "mean_p_on_defects_loso": 0.33016802643298127,
+   "mean_p_on_defects_in_site": 0.2516359213102406,
+   "auc_loso": 0.8546471904818,
+   "auc_in_site": 0.7981034279656025
+  },
+  {
+   "site": "pavement",
+   "n": 1294,
+   "actual_prevalence": 0.10046367851622875,
+   "predicted_prevalence_loso": 0.20003242173268707,
+   "predicted_prevalence_in_site": 0.10059705846815688,
+   "mean_p_on_defects_loso": 0.3759052855609858,
+   "mean_p_on_defects_in_site": 0.21780177905032844,
+   "auc_loso": 0.859846682527095,
+   "auc_in_site": 0.8469204335183718
+  },
+  {
+   "site": "wall",
+   "n": 923,
+   "actual_prevalence": 0.2134344528710726,
+   "predicted_prevalence_loso": 0.11802686080199894,
+   "predicted_prevalence_in_site": 0.215128976751775,
+   "mean_p_on_defects_loso": 0.21150251117004643,
+   "mean_p_on_defects_in_site": 0.29828770728240933,
+   "auc_loso": 0.7645327292304682,
+   "auc_in_site": 0.7415782187355792
+  }
+ ]
+}
