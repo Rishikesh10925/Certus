@@ -1420,3 +1420,95 @@ plan's evidence for this week), along with F4 and F5 still pending.
 
 Next (Week 14): FastAPI service and latency, console, F1, F8, F9,
 Discussion and Limitations.
+
+## Week 14: service, console, F1, F8, F9, Discussion and Limitations
+
+### What was built
+
+- **Service** (`src/certus/service/`, run instructions in
+  `service/README.md`), FastAPI, the five endpoints of the contract:
+  `POST /v1/inspect`, `GET /v1/calibration/{cluster}`, `POST /v1/feedback`,
+  `GET /v1/audit/next`, `GET /v1/metrics` (Prometheus).
+  - Score: S1 (CLIP zero-shot), computed online with the same function as
+    the research code. The build script checks it against the stored S1
+    values: max difference 4e-15. S7 is better but needs a Qwen2-VL pass
+    per image (too slow); S1 costs about 2 points of HRF (85.5% vs 83.4% at
+    conditional 0.05).
+  - Calibration artifact (`scripts/build_service_calibration.py`): the
+    whole SDNET2018 cal split (8413 images, 1272 defects), per cluster
+    (deck, pavement, wall, pooled) and epsilon in 0.20-0.01: conditional
+    CRC lambda_hat, LAC q_hat, shift threshold. lambda_hat is finite down to
+    0.01 everywhere. Recalibration takes 2.8 s with cached features
+    (`results/service/calibration_build.json`).
+  - Shift check (the Week 12 lesson): an image whose nearest calibration
+    neighbour in its cluster is less similar than the 1st percentile of the
+    calibration set's own nearest-neighbour similarities is escalated,
+    never cleared. Can be switched off (`escalate_on_shift`).
+  - FLAG pre-fills the defect type from the best-matching S1 prompt
+    (crack / vegetation / corrosion / dampness); 5% of auto-cleared images
+    are held for audit; feedback is stored and never recalibrates live.
+  - 12 tests with a fake scorer (`tests/test_service.py`).
+- **Console** (`ui/console.py`, Streamlit, one screen): epsilon slider,
+  live re-partitioning grid (red border = ground-truth defect), HRF /
+  auto-cleared / projected review hours / defects cleared in the batch,
+  risk statement footer. Checked with Streamlit's AppTest across every
+  epsilon and in a headless browser (screenshot
+  `paper/figures/console_demo.png`, local).
+- **F1** system diagram, **F8** cost break-even, **F9** latency
+  (`figure_f1/f8/f9`, `scripts/make_f1/f8/f9.py`, PNGs in `paper/figures/`).
+- `paper/discussion.tex` (local): Discussion and Limitations.
+- Dependencies: python-multipart, streamlit (runtime), httpx 0.27.2 (dev;
+  starlette 0.36's TestClient breaks on httpx 0.28). Installed with every
+  existing package held at its current version. The mypy pre-commit hook
+  now has fastapi and pydantic.
+- Not done: ONNX Runtime (the service README's original plan). Not needed
+  on GPU; it is the obvious next step for CPU.
+
+### Latency (`scripts/measure_latency.py`, `results/service/latency_*.json`)
+
+Real service under uvicorn, one sequential httpx client on the same
+laptop, POST /v1/inspect with real images.
+
+| device | requests | p50 | p95 | p99 | max | within 400 ms at p95 |
+|---|---|---|---|---|---|---|
+| RTX 5050 laptop GPU | 8591 (all SDNET test + 175 CBRI gold) | 30 ms | 98 ms | 138 ms | 3.7 s | yes |
+| CPU only | 1000 (random subset) | 189 ms | 606 ms | 1297 ms | 4.2 s | **no** |
+
+The CLIP encoder is most of it (median 19 ms GPU, 159 ms CPU); the
+conformal decision is 0.2 ms. The rest of the server (upload parsing,
+shift check, SQLite) is about 6 ms on GPU, 25 ms on CPU. Startup 12-16 s.
+The 3.7 s GPU outlier is server-side and unexplained.
+
+### The deployed service on held-out data (GPU run, epsilon = 0.05)
+
+| cluster | images | defects | defects auto-cleared | HRF | shift flags |
+|---|---|---|---|---|---|
+| deck | 2024 | 316 | 3.8% | 0.89 | 1.6% |
+| pavement | 3680 | 403 | 5.2% | 0.71 | 1.0% |
+| wall | 2712 | 555 | 5.8% | 0.85 | 1.2% |
+| CBRI (pooled) | 175 | 172 | 0% | 1.00 | 90% |
+
+- Wall and pavement land a little above 5%, within one standard error
+  (wall: +/-0.9 points). CRC bounds the average over calibration sets, and
+  single deployments exceeded epsilon 38-57% of the time in Week 7, so this
+  is what the guarantee predicts, not a break. The paper says so.
+- The shift check flags about the designed 1% of in-distribution images
+  and 90% of CBRI facades; no CBRI image is cleared, 152 of 175 reach a
+  human with the type pre-filled.
+
+### Decisions made without a written spec
+
+The roadmap's figure list (Section 5.6) is not in the repo. F8 is named
+in `triage/economics.py` and the E3 config (cost break-even); F1 and F9
+are my choice: F1 = system diagram, F9 = latency (the blueprint's system
+metric). Easy to swap if the roadmap says otherwise.
+
+### Review
+
+Live demo: `uvicorn certus.service.app:build --factory --port 8000`, then
+`streamlit run ui/console.py`. p95 = 98 ms on the GPU. Full draft now has
+intro, method, setup, label noise, results, discussion, limitations
+(`paper/`, local); abstract and related work are Week 15.
+
+Next (Week 15): Intro, Related Work, Abstract; cut 20%; verify every
+number against its source.
