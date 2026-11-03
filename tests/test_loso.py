@@ -6,7 +6,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from certus.eval.loso import loso_folds, run_in_site, run_loso, summarize_loso
+from certus.eval.loso import (
+    loso_folds,
+    run_in_site,
+    run_loso,
+    sscv,
+    summarize_conditional,
+    summarize_loso,
+)
 
 
 def _sites(shift: float, n: int = 900) -> tuple[np.ndarray, ...]:
@@ -64,3 +71,37 @@ def test_run_loso_rejects_too_large_n_cal() -> None:
     fold = loso_folds(sites, ("a", "b", "c"))[0]
     with pytest.raises(ValueError, match="n_cal"):
         run_loso(fold, probs, s, y, 0.1, 0.1, 10_000)
+
+
+def test_sscv_finds_the_under_covered_size() -> None:
+    # 50 size-1 sets at 70% coverage, 50 size-2 sets (always cover): the
+    # marginal 85% looks close to 0.9, the size-1 stratum is 20 points short.
+    covered = np.r_[np.arange(50) < 35, np.ones(50, bool)]
+    size = np.r_[np.ones(50, np.int64), np.full(50, 2)]
+    assert sscv(covered, size, 0.1) == pytest.approx(0.2)
+
+
+def test_sscv_ignores_sizes_below_the_row_floor() -> None:
+    covered = np.r_[np.zeros(3, bool), np.ones(97, bool)]
+    size = np.r_[np.zeros(3, np.int64), np.full(97, 2)]
+    assert sscv(covered, size, 0.1) == pytest.approx(0.1)
+    assert sscv(covered, size, 0.1, min_rows=1) == pytest.approx(0.9)
+    assert np.isnan(sscv(covered[:3], size[:3], 0.1))
+
+
+def test_conditional_summary_splits_classes_and_strata() -> None:
+    sites, y, s, probs = _sites(0.2)
+    (fold,) = (f for f in loso_folds(sites, ("a", "b", "c")) if f.site == "c")
+    res = run_loso(fold, probs, s, y, 0.1, 0.1, 400, n_seeds=10)
+    half = np.zeros(y.size, bool)
+    half[::2] = True
+    c = summarize_conditional(res, y, 0.1, 0.1, strata={"half": half})
+    seed0 = res[0]
+    yt = y[seed0.test]
+    assert seed0.covered.size == seed0.test.size == fold.target.size
+    marg = np.mean([r.coverage for r in res])
+    share = yt.mean()
+    assert c["coverage_defect"] * share + c["coverage_clean"] * (1 - share) == pytest.approx(marg)
+    assert sum(c[f"size{k}_frac"] for k in range(3)) == pytest.approx(1.0)
+    miss = np.mean([r.miss_rate for r in res]) / 0.1
+    assert 0.5 * miss < c["half_miss_ratio"] < 1.5 * miss + 0.5

@@ -27,7 +27,7 @@ Three ways to set the thresholds (`method`), all evaluated identically:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from numpy.typing import NDArray
@@ -66,6 +66,11 @@ class LosoSeedResult:
     hrf: float  # CRC conditional: share of target rows not cleared
     ess_frac: float = 1.0  # weighted, localized: ESS / n of the defect rows CRC uses
     domain_auc: float = float("nan")  # weighted: source-vs-target separability
+    # Per test row, for the conditional summaries (summarize_conditional).
+    test: NDArray[np.int64] = field(default_factory=lambda: np.zeros(0, np.int64), repr=False)
+    covered: NDArray[np.bool_] = field(default_factory=lambda: np.zeros(0, bool), repr=False)
+    set_size: NDArray[np.int64] = field(default_factory=lambda: np.zeros(0, np.int64), repr=False)
+    cleared: NDArray[np.bool_] = field(default_factory=lambda: np.zeros(0, bool), repr=False)
 
 
 def loso_folds(sites: NDArray[np.str_], source_sites: tuple[str, ...]) -> list[LosoFold]:
@@ -107,13 +112,18 @@ def _evaluate(
     sets = lac_score_matrix(probs[test]) <= np.reshape(q, (-1, 1))
     cleared = scores[test] > np.asarray(lam)
     defects = labels[test]
+    y = defects.astype(int)
     return LosoSeedResult(
         seed=seed,
-        coverage=marginal_coverage(sets, labels[test].astype(int)),
+        coverage=marginal_coverage(sets, y),
         miss_rate=float(cleared[defects].mean()) if defects.any() else 0.0,
         hrf=float(1.0 - cleared.mean()),
         ess_frac=ess_frac,
         domain_auc=domain_auc,
+        test=test,
+        covered=sets[np.arange(test.size), y],
+        set_size=sets.sum(axis=1),
+        cleared=cleared,
     )
 
 
@@ -259,3 +269,69 @@ def summarize_loso(results: list[LosoSeedResult], alpha: float, epsilon: float) 
         "domain_auc_mean": float(auc.mean()),
         "n_seeds": float(cov.size),
     }
+
+
+SSCV_MIN_ROWS = 10
+
+
+def sscv(
+    covered: NDArray[np.bool_],
+    set_size: NDArray[np.int64],
+    alpha: float,
+    min_rows: int = SSCV_MIN_ROWS,
+) -> float:
+    """Size-stratified coverage violation (Angelopoulos et al. 2021): the
+    worst |coverage - (1 - alpha)| over the set sizes held by at least
+    `min_rows` test rows. A method can hit 1 - alpha on average by mixing
+    over-covered large sets with under-covered small ones; SSCV is how far
+    apart they are. With two classes a size-2 set always covers and a
+    size-0 set never does, so without the floor one stray empty set in a
+    seed would score 1 - alpha; nan if no size has enough rows."""
+    sizes, counts = np.unique(set_size, return_counts=True)
+    gaps = [
+        abs(covered[set_size == k].mean() - (1.0 - alpha))
+        for k, c in zip(sizes, counts, strict=True)
+        if c >= min_rows
+    ]
+    return float(max(gaps)) if gaps else float("nan")
+
+
+def summarize_conditional(
+    results: list[LosoSeedResult],
+    labels: NDArray[np.bool_],
+    alpha: float,
+    epsilon: float,
+    strata: dict[str, NDArray[np.bool_]] | None = None,
+) -> dict[str, float]:
+    """What the marginal numbers hide: split-CP coverage per class and per
+    set size, SSCV, and, for each named stratum of rows (e.g. a defect
+    type), the coverage and CRC miss rate on the defects inside it. Means
+    over seeds; a stratum with no test rows in a seed is skipped there."""
+    out: dict[str, list[float]] = {}
+
+    def add(key: str, value: float) -> None:
+        out.setdefault(key, []).append(value)
+
+    for r in results:
+        y = labels[r.test]
+        for name, mask in (("clean", ~y), ("defect", y)):
+            if mask.any():
+                add(f"coverage_{name}", float(r.covered[mask].mean()))
+        add("sscv", sscv(r.covered, r.set_size, alpha))
+        for k in range(3):
+            at_k = r.set_size == k
+            add(f"size{k}_frac", float(at_k.mean()))
+            if at_k.any():
+                add(f"size{k}_coverage", float(r.covered[at_k].mean()))
+        for name, mask in (strata or {}).items():
+            m = mask[r.test] & y
+            if m.any():
+                add(f"{name}_n", float(m.sum()))
+                add(f"{name}_coverage", float(r.covered[m].mean()))
+                add(f"{name}_miss_ratio", float(r.cleared[m].mean()) / epsilon)
+    summary = {k: float(np.nanmean(v)) for k, v in out.items()}
+    for name in ("clean", "defect"):
+        if f"coverage_{name}" in summary:
+            summary[f"coverage_{name}_gap"] = summary[f"coverage_{name}"] - (1.0 - alpha)
+    summary["sscv_p95"] = float(np.nanpercentile(out["sscv"], 95))
+    return summary
