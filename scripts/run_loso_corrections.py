@@ -11,6 +11,11 @@ the effective sample size and the domain classifier's AUC. Localized CP
 weights by CLIP similarity with an adaptive bandwidth, k_frac in 0.05,
 0.1, 0.25.
 
+Week 13 adds what the marginal numbers hide (eval/loso.py,
+summarize_conditional): split-CP coverage per class and per set size,
+SSCV, and on CBRI the coverage and CRC miss ratio per defect type. Those
+go in results/e4/loso_v3_conditional.md.
+
 Usage:
     python scripts/run_loso_corrections.py
 """
@@ -26,7 +31,15 @@ import numpy as np
 
 from certus.data.splits import read_manifest, sample_records
 from certus.data.store import connect, model_versions, read_scores
-from certus.eval.loso import fold_weights, loso_folds, run_in_site, run_loso, summarize_loso
+from certus.eval.loso import (
+    SSCV_MIN_ROWS,
+    fold_weights,
+    loso_folds,
+    run_in_site,
+    run_loso,
+    summarize_conditional,
+    summarize_loso,
+)
 from certus.scores import s1
 from certus.scores.registry import ScoreContext, defect_probability
 
@@ -36,6 +49,7 @@ LEVELS = (0.10, 0.05)  # alpha for split CP and epsilon for CRC, paired
 N_CAL = 1000
 CLUSTERS = (2, 4, 8)
 K_FRACS = (0.05, 0.1, 0.25)
+DEFECT_TYPES = ("crack", "vegetation", "corrosion", "dampness")  # CBRI gold classes
 
 
 def main() -> int:
@@ -56,6 +70,11 @@ def main() -> int:
     sites = np.array([r.site_id.split("-")[0] for r in pool] + ["cbri"] * len(gold))
     y = np.array([r.defect_positive for r in pool] + [g["defect_positive"] == "yes" for g in gold])
     folds = loso_folds(sites, SOURCE_SITES)
+    # A multi-label image counts under each of its defect types.
+    strata = {
+        d: np.array([False] * len(pool) + [d in g["classes"].split(";") for g in gold])
+        for d in DEFECT_TYPES
+    }
 
     ctx = ScoreContext(
         image_roots={"cbri": Path("data/raw/cbri"), "sdnet2018": Path("data/raw/sdnet2018")},
@@ -100,6 +119,9 @@ def main() -> int:
                             "n_target": int(fold.target.size),
                             "target_prevalence": float(y[fold.target].mean()),
                             **summarize_loso(res, level, level),
+                            **summarize_conditional(
+                                res, y, level, level, strata if fold.site == "cbri" else None
+                            ),
                         }
                     )
         print(f"{score} done", flush=True)
@@ -114,6 +136,7 @@ def main() -> int:
         "n_seeds": args.n_seeds,
         "clusters": CLUSTERS,
         "k_fracs": K_FRACS,
+        "sscv_min_rows": SSCV_MIN_ROWS,
         "model_versions": versions,
         "rows": rows,
     }
@@ -173,6 +196,65 @@ def main() -> int:
     table = "\n".join(lines) + "\n"
     args.out.with_suffix(".md").write_text(table, encoding="utf-8")
     print(table)
+
+    def fmt(r: dict[str, float], key: str) -> str:
+        return f"{r[key]:.2f}" if key in r and np.isfinite(r[key]) else "--"
+
+    cond = [
+        "# LOSO v3 -- what marginal coverage hides",
+        "",
+        "Split CP (LAC) sets, same runs as loso_v3.md. Cells are coverage on"
+        " clean rows / on defect rows / SSCV. SSCV is the worst |coverage -"
+        f" (1 - alpha)| over set sizes held by at least {SSCV_MIN_ROWS} test"
+        " rows in a seed, averaged over seeds. CBRI has 3 clean rows, so its"
+        " clean coverage is noise.",
+        "",
+        "| score | level | held-out site | " + " | ".join(methods) + " |",
+        "|---|---|---|" + "---|" * len(methods),
+    ]
+    for score in SCORES:
+        for level in LEVELS:
+            for fold in folds:
+                key = (score, level, fold.site)
+                cond.append(
+                    f"| {score} | {level:g} | {fold.site} | "
+                    + " | ".join(
+                        " / ".join(
+                            fmt(cell[(*key, m)], k)
+                            for k in ("coverage_clean", "coverage_defect", "sscv")
+                        )
+                        for m in methods
+                    )
+                    + " |"
+                )
+    cond += [
+        "",
+        "CBRI by defect type: CRC miss ratio (P(cleared | defect) / epsilon)."
+        " Mean images per type: "
+        + ", ".join(
+            f"{d} {int(cell[('s1', 0.1, 'cbri', 'vanilla')][f'{d}_n'])}" for d in DEFECT_TYPES
+        )
+        + ".",
+        "",
+        "| score | level | defect type | "
+        + " | ".join(m for m in methods if m != "in_site")
+        + " |",
+        "|---|---|---|" + "---|" * (len(methods) - 1),
+    ]
+    for score in SCORES:
+        for level in LEVELS:
+            for d in DEFECT_TYPES:
+                key = (score, level, "cbri")
+                cond.append(
+                    f"| {score} | {level:g} | {d} | "
+                    + " | ".join(
+                        fmt(cell[(*key, m)], f"{d}_miss_ratio") for m in methods if m != "in_site"
+                    )
+                    + " |"
+                )
+    cond_md = "\n".join(cond) + "\n"
+    args.out.with_name(args.out.stem + "_conditional.md").write_text(cond_md, encoding="utf-8")
+    print(cond_md)
     return 0
 
 
