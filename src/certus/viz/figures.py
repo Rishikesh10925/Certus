@@ -15,9 +15,11 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib
+import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
 
 SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
@@ -523,11 +525,11 @@ def figure_f6(
             if i == len(scores) - 1:
                 ax.set_xlabel("human-review fraction on the held-out site", fontsize=8, color=INK)
     method_handles = [
-        plt.Line2D([], [], color=SERIES[f_idx], marker="o", linewidth=1.0, label=F6_LABELS[f])
+        Line2D([], [], color=SERIES[f_idx], marker="o", linewidth=1.0, label=F6_LABELS[f])
         for f_idx, f in enumerate(F6_FAMILIES)
     ]
     method_handles.append(
-        plt.Line2D(
+        Line2D(
             [],
             [],
             color=INK_MUTED,
@@ -538,7 +540,7 @@ def figure_f6(
         )
     )
     site_handles = [
-        plt.Line2D(
+        Line2D(
             [],
             [],
             color=INK_MUTED,
@@ -676,4 +678,381 @@ def figure_f7(
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=200, facecolor=SURFACE, bbox_inches="tight")
+    plt.close(fig)
+
+
+def figure_f8(
+    rows: Sequence[dict[str, Any]],
+    out_path: Path,
+    prevalence: float,
+    scores: Sequence[str] = ("s7", "s1", "s5"),
+    curve_score: str = "s7",
+    curve_eps: Sequence[float] = (0.20, 0.10, 0.05, 0.02, 0.01),
+) -> None:
+    """F8 -- when automation pays. Left: net saving per image against full
+    human review, in units of one review's cost, as the cost of a missed
+    defect grows (c_m / c_h, log x), for `curve_score` under the
+    conditional guarantee at several epsilon; below zero, reviewing
+    everything is cheaper. Right: the break-even ratio at which the saving
+    is zero, against epsilon, for each score and both guarantees. Costs are
+    at the guarantee's bound and assume humans miss nothing (see
+    triage/economics.py)."""
+    from certus.triage.economics import break_even_ratio, net_saving
+
+    def crc(score: str, guarantee: str) -> list[dict[str, Any]]:
+        sel = [
+            r
+            for r in rows
+            if r["score"] == score and r["method"] == "crc" and r["guarantee"] == guarantee
+        ]
+        if guarantee == "joint":
+            sel = [r for r in sel if r["epsilon"] < prevalence]
+        return sorted(sel, key=lambda r: r["epsilon"])
+
+    fig, (left, right) = plt.subplots(1, 2, figsize=(10.0, 4.2))
+    fig.patch.set_facecolor(SURFACE)
+    for ax in (left, right):
+        _style(ax)
+
+    ratios = np.logspace(0, 3, 200)
+    by_eps = {r["epsilon"]: r for r in crc(curve_score, "conditional")}
+    for k, eps in enumerate(curve_eps):
+        r = by_eps[eps]
+        saving = [net_saving(r["hrf_mean"], eps, prevalence, "conditional", 1.0, c) for c in ratios]
+        left.plot(
+            ratios,
+            saving,
+            color=SERIES[k],
+            linewidth=1.6,
+            label=f"ε = {eps:g} (HRF {r['hrf_mean']:.0%})",
+        )
+        be = break_even_ratio(r["hrf_mean"], eps, prevalence, "conditional")
+        left.plot(be, 0.0, MARKERS[k], color=SERIES[k], markersize=6, markeredgecolor=SURFACE)
+    left.axhline(0.0, color=INK, linewidth=1.0)
+    left.axhspan(-1.0, 0.0, color=GRID, alpha=0.5, linewidth=0)
+    left.text(1.2, -0.08, "reviewing everything is cheaper", fontsize=7, color=INK_MUTED)
+    left.set_xscale("log")
+    left.set_ylim(-0.6, 0.6)
+    left.set_xlabel("cost of a missed defect / cost of one review (c_m / c_h)", fontsize=8)
+    left.set_ylabel("net saving per image, in reviews", fontsize=8, color=INK)
+    left.set_title(
+        f"{SCORE_LABELS.get(curve_score, curve_score)}, conditional guarantee",
+        fontsize=8.5,
+        color=INK,
+    )
+    left.legend(fontsize=7, frameon=False, labelcolor=INK, loc="upper right")
+
+    for k, score in enumerate(scores):
+        for guarantee, style in (("conditional", "-"), ("joint", "--")):
+            sel = [r for r in crc(score, guarantee) if r["hrf_mean"] < 1.0]
+            right.plot(
+                [r["epsilon"] for r in sel],
+                [break_even_ratio(r["hrf_mean"], r["epsilon"], prevalence, guarantee) for r in sel],
+                style,
+                marker=MARKERS[k],
+                color=SERIES[k],
+                markersize=4.5,
+                linewidth=1.4,
+                label=f"{SCORE_LABELS.get(score, score)}, {guarantee}",
+            )
+    right.set_xscale("log")
+    eps_ticks = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005]
+    right.set_xticks(eps_ticks)
+    right.set_xticklabels([f"{e:g}" for e in eps_ticks])
+    right.minorticks_off()
+    right.invert_xaxis()
+    right.set_ylim(bottom=0)
+    right.set_xlabel("guaranteed miss rate ε (stricter →)", fontsize=8)
+    right.set_ylabel("break-even c_m / c_h", fontsize=8, color=INK)
+    right.set_title("Automation pays only below the curve", fontsize=8.5, color=INK)
+    right.legend(fontsize=6.5, frameon=False, labelcolor=INK, ncol=1, loc="upper left")
+    fig.suptitle(
+        "F8 — Off-the-shelf scores pay for themselves only while a missed defect costs"
+        " under ~40 reviews\nCRC on SDNET2018, means over 100 seeds; costs at the"
+        " guarantee's bound, humans assumed perfect",
+        fontsize=9.5,
+        color=INK,
+    )
+    fig.subplots_adjust(top=0.83, bottom=0.12, left=0.07, right=0.98, wspace=0.22)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def figure_f1(out_path: Path) -> None:
+    """F1 -- the system: the online path a single image takes (top) and the
+    offline calibration loop that sets its thresholds (bottom). Only
+    AUTO_CLEAR is a conformal decision; FLAG and ESCALATE both reach a
+    human, so routing between them never touches the guarantee."""
+    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+
+    fig, ax = plt.subplots(figsize=(10.0, 4.6))
+    fig.patch.set_facecolor(SURFACE)
+    ax.set_facecolor(SURFACE)
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 46)
+    ax.axis("off")
+
+    def box(x: float, y: float, w: float, h: float, title: str, body: str, accent: str) -> None:
+        ax.add_patch(
+            FancyBboxPatch(
+                (x, y),
+                w,
+                h,
+                boxstyle="round,pad=0.4,rounding_size=1.2",
+                facecolor=SURFACE,
+                edgecolor=accent,
+                linewidth=1.4,
+            )
+        )
+        ax.text(
+            x + w / 2,
+            y + h - 2.0,
+            title,
+            ha="center",
+            va="top",
+            fontsize=8,
+            color=INK,
+            fontweight="bold",
+        )
+        ax.text(
+            x + w / 2,
+            y + h - 5.4,
+            body,
+            ha="center",
+            va="top",
+            fontsize=6.6,
+            color=INK_MUTED,
+            linespacing=1.35,
+        )
+
+    def arrow(
+        a: tuple[float, float],
+        b: tuple[float, float],
+        style: str = "-|>",
+        colour: str = INK_MUTED,
+        ls: str = "-",
+        rad: float = 0.0,
+    ) -> None:
+        ax.add_patch(
+            FancyArrowPatch(
+                a,
+                b,
+                arrowstyle=style,
+                mutation_scale=10,
+                color=colour,
+                linewidth=1.1,
+                linestyle=ls,
+                connectionstyle=f"arc3,rad={rad}",
+            )
+        )
+
+    online, offline, out = SERIES[0], SERIES[2], SERIES[1]
+    ax.text(
+        0.5,
+        45.0,
+        "online, per image  (p95 latency reported in F9)",
+        fontsize=7.5,
+        color=online,
+        va="top",
+    )
+    top_y, top_h = 27.0, 14.0
+    box(
+        0.5,
+        top_y,
+        14,
+        top_h,
+        "Image + site id",
+        "uploaded photo\nsite type picks\nthe calibration\ncluster",
+        online,
+    )
+    box(
+        18.5,
+        top_y,
+        15,
+        top_h,
+        "Frozen CLIP",
+        "ViT-B/32 embedding\nno fine-tuning,\nno training labels",
+        online,
+    )
+    box(
+        37.5,
+        top_y,
+        15,
+        top_h,
+        "Score S1",
+        "s(x) = 1 − p(defect)\nzero-shot prompts:\ncrack, vegetation,\ncorrosion, dampness",
+        online,
+    )
+    box(
+        56.5,
+        top_y,
+        15,
+        top_h,
+        "Shift check",
+        "nearest calibration\nimage too far?\n→ never auto-clear",
+        online,
+    )
+    box(
+        75.5,
+        top_y,
+        24,
+        top_h,
+        "Triage",
+        "s(x) > λ̂(ε)  →  AUTO_CLEAR\nset = {defect}  →  FLAG, type pre-filled\n"
+        "otherwise  →  ESCALATE\n+ plain-English risk statement",
+        out,
+    )
+    for x0, x1 in ((14.9, 18.1), (33.9, 37.1), (52.9, 56.1), (71.9, 75.1)):
+        arrow((x0, top_y + top_h / 2), (x1, top_y + top_h / 2), colour=online)
+
+    ax.text(0.5, 24.0, "offline, weekly batch", fontsize=7.5, color=offline, va="top")
+    bot_y, bot_h = 7.0, 13.0
+    box(
+        0.5,
+        bot_y,
+        21,
+        bot_h,
+        "Labelled calibration set",
+        "8,413 SDNET2018 images\nhuman labels, never trained on\nsplit by structure type",
+        offline,
+    )
+    box(
+        26.5,
+        bot_y,
+        22,
+        bot_h,
+        "Conformal risk control",
+        "per cluster and ε:\nλ̂ = smallest threshold with\n"
+        "E[P(cleared | defect)] ≤ ε\n(+ split CP q̂ for the set)",
+        offline,
+    )
+    box(
+        53.5,
+        bot_y,
+        17,
+        bot_h,
+        "Calibration artifact",
+        "λ̂, q̂, shift threshold\nversioned, loaded\nat startup",
+        offline,
+    )
+    box(
+        75.5,
+        bot_y,
+        24,
+        bot_h,
+        "Audit + feedback",
+        "5% of auto-cleared images\nsampled for a human label;\n"
+        "labels never recalibrate live,\nthey feed the weekly batch",
+        out,
+    )
+    arrow((21.9, bot_y + bot_h / 2), (26.1, bot_y + bot_h / 2), colour=offline)
+    arrow((48.9, bot_y + bot_h / 2), (53.1, bot_y + bot_h / 2), colour=offline)
+    arrow((62.0, bot_y + bot_h + 0.6), (85.0, top_y - 0.6), colour=offline, ls="--")
+    ax.text(66.0, 23.0, "thresholds", fontsize=6.6, color=offline, ha="right")
+    arrow((87.5, top_y - 0.6), (87.5, bot_y + bot_h + 0.6), colour=out)
+    ax.text(88.5, 23.0, "cleared images", fontsize=6.6, color=out)
+    arrow((87.5, bot_y - 0.6), (11.0, bot_y - 0.6), colour=out, ls="--", rad=-0.06)
+    ax.text(49.0, 0.6, "new labels join the next calibration", fontsize=6.6, color=out, ha="center")
+    fig.suptitle(
+        "F1 — Certus: a frozen vision-language score, a conformal threshold per site type,"
+        " and a guarantee on the share of defects auto-cleared",
+        fontsize=9.5,
+        color=INK,
+    )
+    fig.subplots_adjust(top=0.92, bottom=0.01, left=0.01, right=0.99)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    plt.close(fig)
+
+
+DEVICE_LABELS = {"cuda": "laptop GPU (RTX 5050)", "cpu": "CPU only"}
+
+
+def figure_f9(
+    runs: dict[str, dict[str, Any]],
+    out_path: Path,
+    budget_ms: float = 400.0,
+) -> None:
+    """F9 -- serving cost. Left: the distribution of end-to-end
+    /v1/inspect latency (client wall time, log x) per device, with p50, p95
+    and p99 marked against the latency budget. Right: where the median
+    request's time goes -- image decode, the CLIP encoder, the rest of the
+    server (upload parsing, shift check, conformal decision, SQLite log)
+    and HTTP.
+    `runs` maps a device to arrays: client_ms, server_decode_ms,
+    server_embed_ms, server_total_ms."""
+    fig, (left, right) = plt.subplots(
+        1, 2, figsize=(10.0, 4.4), gridspec_kw={"width_ratios": [1.4, 1.0]}
+    )
+    fig.patch.set_facecolor(SURFACE)
+    for ax in (left, right):
+        _style(ax)
+    devices = list(runs)
+    for k, device in enumerate(devices):
+        ms = np.sort(np.asarray(runs[device]["client_ms"], dtype=float))
+        frac = np.arange(1, ms.size + 1) / ms.size
+        colour = SERIES[k]
+        qs = [float(np.quantile(ms, q)) for q in (0.5, 0.95, 0.99)]
+        label = (
+            f"{DEVICE_LABELS.get(device, device)}: p50 / p95 / p99 = "
+            + " / ".join(f"{v:.0f}" for v in qs)
+            + " ms"
+        )
+        left.plot(ms, frac, color=colour, linewidth=1.6, label=label)
+        for j, (q, v) in enumerate(zip((0.5, 0.95, 0.99), qs, strict=True)):
+            left.plot(v, q, MARKERS[j + 1], color=colour, markersize=5, markeredgecolor=SURFACE)
+    left.axvline(budget_ms, color=INK, linestyle="--", linewidth=1.0)
+    left.text(budget_ms * 1.05, 0.05, f"budget {budget_ms:.0f} ms", fontsize=7, color=INK)
+    left.set_xscale("log")
+    left.set_ylim(0, 1.02)
+    left.set_xlabel("end-to-end latency per image (ms, log scale)", fontsize=8)
+    left.set_ylabel("share of requests at or below", fontsize=8, color=INK)
+    left.set_title("POST /v1/inspect, one image per request", fontsize=8.5, color=INK)
+    left.legend(
+        fontsize=6.8, frameon=False, labelcolor=INK, loc="upper center", bbox_to_anchor=(0.5, -0.17)
+    )
+
+    parts = ("decode", "CLIP encoder", "rest of server", "HTTP")
+    bottom = np.zeros(len(devices))
+    stacks = []
+    for device in devices:
+        r = runs[device]
+        dec = float(np.median(r["server_decode_ms"]))
+        emb = float(np.median(r["server_embed_ms"]))
+        tot = float(np.median(r["server_total_ms"]))
+        cli = float(np.median(r["client_ms"]))
+        stacks.append([dec, emb, max(tot - dec - emb, 0.0), max(cli - tot, 0.0)])
+    values = np.array(stacks)
+    y = np.arange(len(devices))
+    for j, name in enumerate(parts):
+        right.barh(
+            y,
+            values[:, j],
+            left=bottom,
+            color=SERIES[(j + 2) % len(SERIES)],
+            height=0.5,
+            label=name,
+        )
+        bottom += values[:, j]
+    for i, total in enumerate(bottom):
+        right.text(total * 1.02, i, f"{total:.0f} ms", va="center", fontsize=7, color=INK)
+    right.set_yticks(y)
+    right.set_yticklabels([DEVICE_LABELS.get(d, d) for d in devices], fontsize=7.5, color=INK)
+    right.set_xlim(0, bottom.max() * 1.25)
+    right.set_xlabel("median time per request (ms)", fontsize=8)
+    right.set_title("Where the time goes (medians)", fontsize=8.5, color=INK)
+    right.legend(fontsize=7, frameon=False, labelcolor=INK, ncol=2, loc="lower right")
+    right.tick_params(axis="y", grid_alpha=0)
+    n = min(np.asarray(r["client_ms"]).size for r in runs.values())
+    fig.suptitle(
+        "F9 — Within the 400 ms budget on a laptop GPU, not on CPU alone; the image encoder"
+        f" is most of it\nsingle sequential client on the same machine, ≥ {n:,} requests"
+        " per device; markers at p50, p95, p99",
+        fontsize=9.5,
+        color=INK,
+    )
+    fig.subplots_adjust(top=0.82, bottom=0.27, left=0.07, right=0.98, wspace=0.35)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
     plt.close(fig)
