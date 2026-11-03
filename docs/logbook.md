@@ -1358,3 +1358,65 @@ So the shift contribution stays. Framing for Part 3 of the paper:
 
 Next (Week 13): F6 (recovered coverage against efficiency cost, all four
 methods), F7 (class-conditional coverage heatmap), SSCV, Results section.
+
+## Week 13: recovery cost (F6), class-conditional coverage (F7), SSCV, Results
+
+### What was built
+
+- `eval/loso.py`: each seed result now keeps its per-row outcomes (test
+  rows, covered, set size, cleared). `summarize_conditional` turns them
+  into split-CP coverage per class and per set size, SSCV, and coverage
+  and CRC miss ratio per named stratum (CBRI defect types). `sscv` is
+  Angelopoulos et al. (2021): the worst |coverage - (1 - alpha)| over set
+  sizes. With two classes a size-2 set always covers and a size-0 set
+  never does, so one stray empty set in a seed would score 1 - alpha;
+  only sizes with >= 10 test rows in a seed count (`SSCV_MIN_ROWS`).
+- `scripts/run_loso_corrections.py` re-run: the 144 rows of
+  `results/e4/loso_v3.json` reproduce every existing field exactly and gain
+  23 conditional fields; new table `results/e4/loso_v3_conditional.md`.
+- F6 (`figure_f6`, `scripts/make_f6.py` -> `paper/figures/F6_recovery.png`):
+  miss ratio against HRF, every site and correction, localized drawn
+  through its bandwidth knob. Mondrian only at k = 8 (not monotone in k,
+  the 2/4/8 lines just zigzag).
+- F7 (`figure_f7`, `scripts/make_f7.py` ->
+  `paper/figures/F7_class_coverage.png`): coverage on all / clean /
+  defect per held-out site and method, colour = gap to 1 - alpha.
+- `paper/results.tex` (local): Results section, about two pages.
+- 208 tests pass.
+
+### Findings
+
+- **Marginal coverage is honest and useless for triage, even without
+  shift.** In-site, sets cover 90% of images but only 58% of wall defects
+  (S1) and 40% / 17% of deck / pavement defects (S2) at alpha = 0.10;
+  over-covered clean images pay for it. Under shift: walls 48% (S1), 18%
+  (S2).
+- **The corrections do not fix defect coverage** (walls S1 46-48%, S2
+  24-31%), and on walls they do not fix marginal coverage either (S1
+  localized -4.0 points vs vanilla -2.9). They repair the CRC guarantee
+  because that one is calibrated on defects. This is the argument for
+  conditional CRC as the triage rule.
+- **SSCV is alpha in most cells** (size-1 sets on target). It flags two
+  real failures: Mondrian's empty sets (1-4% of rows, a small cluster's
+  threshold admits neither class; SSCV up to 0.90), and S2 on CBRI at
+  alpha = 0.10, whose single-label sets cover 1-18% (confident "clean"
+  on defective facades) under every method, in-site included.
+- **Per defect type on CBRI:** vanilla, weighted and localized clear no
+  defect of any type. Mondrian k8 does clear some, and is valid overall
+  (0.40x S1, 0.84x S2) but misses 1.28x eps of cracks (S2) and 1.07x of
+  dampness (S1, 8 images). The conditional guarantee is over all defects,
+  not per type.
+- **Over-correction**, restated with the right numbers: where vanilla
+  was valid (S1 decks and pavement) corrections raise HRF from 79-80% to
+  86-96%. On CBRI vanilla already sends 100% to review, so there is
+  nothing to over-correct there.
+- Weighted CP is the one large marginal repair: S2 on CBRI, -27.8 to -5.6
+  points at alpha = 0.10.
+
+### Review
+
+F6, F7 and `paper/results.tex` are ready to be reviewed together (the
+plan's evidence for this week), along with F4 and F5 still pending.
+
+Next (Week 14): FastAPI service and latency, console, F1, F8, F9,
+Discussion and Limitations.
