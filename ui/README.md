@@ -1,9 +1,22 @@
 # ui/
 
-React + Tailwind triage console -- one screen, one slider (roadmap
-Section 3.8, deliverable due Week 14). Not implemented yet -- this is a
-placeholder so the directory exists in git.
+The triage console (roadmap Section 3.8, Week 14): one screen, one
+slider. Built in Streamlit, which the plan allows in place of React.
 
-Build exactly one page: a slider for the guaranteed maximum missed-defect
-rate, a live-repartitioning thumbnail grid, an HRF / projected-hours panel,
-and a plain-English risk statement footer. Resist adding a second screen.
+- A slider for the guaranteed maximum missed-defect rate (epsilon).
+- A thumbnail grid of a batch of held-out images that re-partitions live
+  into "auto-cleared" and "to a human". Each image is inspected once by the
+  service; the slider then re-uses the lambda_hat the service publishes
+  per epsilon, so it responds instantly.
+- HRF, auto-cleared count, projected review hours per day (images per day
+  x HRF x minutes per review), and the ground-truth defects cleared in
+  this batch (red border = defect), so a miss is visible.
+- The plain-English risk statement as the footer.
+
+## Run
+
+Start the service first (see `service/README.md`), then:
+
+```
+streamlit run ui/console.py
+```
