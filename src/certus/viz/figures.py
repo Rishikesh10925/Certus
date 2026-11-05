@@ -39,6 +39,27 @@ METHOD_LABELS = {
 DATASET_LABELS = {"sdnet2018": "SDNET2018 (human labels)", "cbri": "CBRI (bootstrap labels)"}
 
 
+# Paper mode (scripts/make_paper_figures.py): the caption carries the
+# title, so none is drawn in the image; output is cropped tight at 300 dpi.
+PAPER_MODE = False
+
+
+def _suptitle(fig: Any, text: str, **kwargs: Any) -> None:
+    if not PAPER_MODE:
+        fig.suptitle(text, **kwargs)
+
+
+def _save(fig: Any, out_path: Path, tight: bool = False) -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(
+        out_path,
+        dpi=300 if PAPER_MODE else 200,
+        facecolor=SURFACE,
+        bbox_inches="tight" if (tight or PAPER_MODE) else None,
+        pad_inches=0.03,
+    )
+
+
 def _style(ax: Any) -> None:
     ax.set_facecolor(SURFACE)
     for side in ("top", "right"):
@@ -132,14 +153,14 @@ def figure_f2(
     fig.legend(
         handles, labels, loc="lower center", ncol=4, fontsize=8, frameon=False, labelcolor=INK
     )
-    fig.suptitle(
+    _suptitle(
+        fig,
         f"F2 — Validity on exchangeable data ({score.upper()}, mean ± SD over seeds)",
         fontsize=10,
         color=INK,
     )
     fig.tight_layout(rect=(0, 0.08, 1, 0.97))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    _save(fig, out_path)
     plt.close(fig)
 
 
@@ -262,15 +283,15 @@ def figure_f4(
     fig.legend(
         handles, labels, loc="lower center", ncol=4, fontsize=8, frameon=False, labelcolor=INK
     )
-    fig.suptitle(
+    _suptitle(
+        fig,
         "F4 — The cost of a guaranteed miss rate (SDNET2018, 100 seeds;"
         " dark band 95% CI of the mean, light band 5–95% of seeds)",
         fontsize=9.5,
         color=INK,
     )
     fig.tight_layout(rect=(0, 0.07, 1, 0.95))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    _save(fig, out_path)
     plt.close(fig)
 
 
@@ -325,12 +346,14 @@ def figure_f3(
         ax.set_xlabel("human-review fraction (lower is better)", fontsize=8, color=INK)
         what = "E[defect ∧ cleared]" if guarantee == "joint" else "P(cleared | defect)"
         ax.set_title(f"{what} ≤ {eps:g}", fontsize=9, color=INK)
-    fig.suptitle(
-        "F3 — Score comparison at fixed risk (CRC, 100 seeds, mean ± SD)", fontsize=10, color=INK
+    _suptitle(
+        fig,
+        "F3 — Score comparison at fixed risk (CRC, 100 seeds, mean ± SD)",
+        fontsize=10,
+        color=INK,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    _save(fig, out_path)
     plt.close(fig)
 
 
@@ -362,7 +385,12 @@ def figure_f5(
     from it. Methods keep their colour and marker across panels."""
     cell = {(r["score"], r["level"], r["site"], r["method"]): r for r in rows}
     fig, axes = plt.subplots(
-        len(scores), len(levels), figsize=(10.0, 3.3 * len(scores)), sharex=True, sharey=True
+        len(scores),
+        len(levels),
+        figsize=(10.0, 3.3 * len(scores)),
+        sharex=True,
+        sharey=True,
+        squeeze=False,
     )
     fig.patch.set_facecolor(SURFACE)
     width = 0.8 / len(methods)
@@ -421,15 +449,15 @@ def figure_f5(
     fig.legend(
         handles, labels, loc="lower center", ncol=3, fontsize=8, frameon=False, labelcolor=INK
     )
-    fig.suptitle(
+    _suptitle(
+        fig,
         "F5 — Site shift breaks the miss-rate guarantee, and what each correction recovers\n"
         "leave-one-site-out, conditional CRC, 100 seeds; dots are means, whiskers 5–95% of seeds",
         fontsize=9.5,
         color=INK,
     )
     fig.tight_layout(rect=(0, 0.08, 1, 0.95))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    _save(fig, out_path)
     plt.close(fig)
 
 
@@ -465,7 +493,12 @@ def figure_f6(
     above 1 bought its low HRF by breaking the guarantee."""
     cell = {(r["score"], r["level"], r["site"], r["method"]): r for r in rows}
     fig, axes = plt.subplots(
-        len(scores), len(levels), figsize=(10.0, 3.6 * len(scores)), sharex=True, sharey=True
+        len(scores),
+        len(levels),
+        figsize=(10.0, 3.6 * len(scores)),
+        sharex=True,
+        sharey=True,
+        squeeze=False,
     )
     fig.patch.set_facecolor(SURFACE)
     for i, score in enumerate(scores):
@@ -558,7 +591,8 @@ def figure_f6(
         frameon=False,
         labelcolor=INK,
     )
-    fig.suptitle(
+    _suptitle(
+        fig,
         "F6 — Every recovery is paid for in human review\n"
         "leave-one-site-out, conditional CRC, means over 100 seeds; "
         "above the dashed line the guarantee is broken",
@@ -566,8 +600,7 @@ def figure_f6(
         color=INK,
     )
     fig.tight_layout(rect=(0, 0.07, 1, 0.97))
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    _save(fig, out_path)
     plt.close(fig)
 
 
@@ -667,7 +700,8 @@ def figure_f7(
     bar.set_label("coverage − (1 − α)", fontsize=7.5, color=INK)
     bar.ax.tick_params(labelsize=7, colors=INK_MUTED)
     bar.outline.set_visible(False)
-    fig.suptitle(
+    _suptitle(
+        fig,
         "F7 — Marginal coverage holds; coverage on defects does not\n"
         "split CP (LAC) on the held-out site, leave-one-site-out, means over 100 seeds; "
         "cells are coverage in %",
@@ -676,8 +710,7 @@ def figure_f7(
         x=0.5,
         y=0.97,
     )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE, bbox_inches="tight")
+    _save(fig, out_path, tight=True)
     plt.close(fig)
 
 
@@ -766,7 +799,8 @@ def figure_f8(
     right.set_ylabel("break-even c_m / c_h", fontsize=8, color=INK)
     right.set_title("Automation pays only below the curve", fontsize=8.5, color=INK)
     right.legend(fontsize=6.5, frameon=False, labelcolor=INK, ncol=1, loc="upper left")
-    fig.suptitle(
+    _suptitle(
+        fig,
         "F8 — Off-the-shelf scores pay for themselves only while a missed defect costs"
         " under ~40 reviews\nCRC on SDNET2018, means over 100 seeds; costs at the"
         " guarantee's bound, humans assumed perfect",
@@ -774,8 +808,7 @@ def figure_f8(
         color=INK,
     )
     fig.subplots_adjust(top=0.83, bottom=0.12, left=0.07, right=0.98, wspace=0.22)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    _save(fig, out_path)
     plt.close(fig)
 
 
@@ -851,7 +884,7 @@ def figure_f1(out_path: Path) -> None:
     ax.text(
         0.5,
         45.0,
-        "online, per image  (p95 latency reported in F9)",
+        "online, per image",
         fontsize=7.5,
         color=online,
         va="top",
@@ -954,15 +987,15 @@ def figure_f1(out_path: Path) -> None:
     ax.text(88.5, 23.0, "cleared images", fontsize=6.6, color=out)
     arrow((87.5, bot_y - 0.6), (11.0, bot_y - 0.6), colour=out, ls="--", rad=-0.06)
     ax.text(49.0, 0.6, "new labels join the next calibration", fontsize=6.6, color=out, ha="center")
-    fig.suptitle(
+    _suptitle(
+        fig,
         "F1 — Certus: a frozen vision-language score, a conformal threshold per site type,"
         " and a guarantee on the share of defects auto-cleared",
         fontsize=9.5,
         color=INK,
     )
     fig.subplots_adjust(top=0.92, bottom=0.01, left=0.01, right=0.99)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    _save(fig, out_path)
     plt.close(fig)
 
 
@@ -1045,7 +1078,8 @@ def figure_f9(
     right.legend(fontsize=7, frameon=False, labelcolor=INK, ncol=2, loc="lower right")
     right.tick_params(axis="y", grid_alpha=0)
     n = min(np.asarray(r["client_ms"]).size for r in runs.values())
-    fig.suptitle(
+    _suptitle(
+        fig,
         "F9 — Within the 400 ms budget on a laptop GPU, not on CPU alone; the image encoder"
         f" is most of it\nsingle sequential client on the same machine, ≥ {n:,} requests"
         " per device; markers at p50, p95, p99",
@@ -1053,6 +1087,5 @@ def figure_f9(
         color=INK,
     )
     fig.subplots_adjust(top=0.82, bottom=0.27, left=0.07, right=0.98, wspace=0.35)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, facecolor=SURFACE)
+    _save(fig, out_path)
     plt.close(fig)
