@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import matplotlib
 import numpy as np
@@ -687,8 +687,8 @@ def figure_f7(
         ax.set_yticks(range(len(methods)))
         ax.set_yticklabels([F7_LABELS.get(m, m) for m in methods], fontsize=7, color=INK)
         ax.tick_params(length=0)
-        for side in ax.spines.values():
-            side.set_visible(False)
+        for side in ("top", "right", "bottom", "left"):
+            ax.spines[side].set_visible(False)
         ax.set_title(
             f"{SCORE_LABELS.get(score, score)}, α = {level:g} (target {100 * (1 - level):.0f}%)",
             fontsize=8.5,
@@ -699,7 +699,7 @@ def figure_f7(
     bar = fig.colorbar(image, ax=list(axes), shrink=0.5, pad=0.02, aspect=30)
     bar.set_label("coverage − (1 − α)", fontsize=7.5, color=INK)
     bar.ax.tick_params(labelsize=7, colors=INK_MUTED)
-    bar.outline.set_visible(False)
+    cast(Any, bar.outline).set_visible(False)  # matplotlib 3.8 stubs mistype outline
     _suptitle(
         fig,
         "F7 — Marginal coverage holds; coverage on defects does not\n"
