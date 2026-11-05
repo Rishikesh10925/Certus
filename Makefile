@@ -1,4 +1,4 @@
-.PHONY: setup data calibrate e1 loso figures paper clean
+.PHONY: setup data calibrate e1 e2 e3 loso latency figures paper clean
 
 PYTHON ?= python
 DATA_PATH ?=
@@ -19,19 +19,33 @@ data:
 	$(PYTHON) scripts/audit_data.py --path "$(DATA_PATH)"
 
 calibrate:
-	@echo "calibrate: not implemented yet -- Phase 1-2, roadmap Part VI Weeks 3-8"
+	$(PYTHON) scripts/build_service_calibration.py
 
+# Experiments (need the raw images or the score cache, and a GPU for scoring).
 e1:
 	$(PYTHON) scripts/run_e1.py
 
+e2:
+	$(PYTHON) scripts/run_e2.py
+
+e3:
+	$(PYTHON) scripts/run_e3.py
+
 loso:
-	@echo "loso: not implemented yet -- Phase 3, roadmap Part VI Weeks 9-12"
+	$(PYTHON) scripts/run_loso_corrections.py
 
+latency:
+	$(PYTHON) scripts/measure_latency.py --device cuda
+
+# Figures F1-F9 from the committed results/ only: works on a fresh clone.
 figures:
-	@echo "figures: not implemented yet -- see roadmap Part V Section 5.6 for the figure list"
+	$(PYTHON) scripts/make_figures.py
 
+# The paper is local (paper/ is gitignored); needs a LaTeX install.
 paper:
-	@echo "paper: not implemented yet -- will run latexmk on paper/main.tex once it exists"
+	$(PYTHON) scripts/make_figures.py --paper
+	cd paper && pdflatex -interaction=nonstopmode main.tex && bibtex main \
+		&& pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

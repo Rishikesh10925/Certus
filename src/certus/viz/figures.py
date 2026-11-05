@@ -39,7 +39,7 @@ METHOD_LABELS = {
 DATASET_LABELS = {"sdnet2018": "SDNET2018 (human labels)", "cbri": "CBRI (bootstrap labels)"}
 
 
-# Paper mode (scripts/make_paper_figures.py): the caption carries the
+# Paper mode (scripts/make_figures.py --paper): the caption carries the
 # title, so none is drawn in the image; output is cropped tight at 300 dpi.
 PAPER_MODE = False
 
