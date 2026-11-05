@@ -58,3 +58,6 @@ wandb/
 
 # paper drafts stay local
 /paper/
+
+# Zenodo / arXiv bundles, built by scripts
+/release/
