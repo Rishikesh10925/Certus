@@ -1485,7 +1485,7 @@ The 3.7 s GPU outlier is server-side and unexplained.
 |---|---|---|---|---|---|
 | deck | 2024 | 316 | 3.8% | 0.89 | 1.6% |
 | pavement | 3680 | 403 | 5.2% | 0.71 | 1.0% |
-| wall | 2712 | 555 | 5.8% | 0.85 | 1.2% |
+| wall | 2712 | 555 | 5.8% | 0.84 | 1.2% |
 | CBRI (pooled) | 175 | 172 | 0% | 1.00 | 90% |
 
 - Wall and pavement land a little above 5%, within one standard error
@@ -1512,3 +1512,52 @@ intro, method, setup, label noise, results, discussion, limitations
 
 Next (Week 15): Intro, Related Work, Abstract; cut 20%; verify every
 number against its source.
+
+## Week 15: the IEEE paper draft
+
+### What was done
+
+- `paper/main.tex` (local, `paper/` is gitignored): one IEEE conference
+  paper (IEEEtran, two-column), 8 pages including references. Title:
+  "Where the Guarantee Breaks: Conformal Risk Control for Building-Defect
+  Triage under Site Shift". New Introduction, Related Work, Abstract and
+  Conclusion; Method, Setup, Results, Label noise, Service, Discussion and
+  Limitations rewritten from the weekly drafts into one argument.
+- Figures in the paper: F1, F4, F5, F6 (epsilon = 0.10 row), F7 (alpha =
+  0.10); three tables (scores, corrections, service). F2, F3, F8, F9 stay
+  in the repo as supplementary.
+- `paper/references.bib`: 35 entries. Venues and authors of the less
+  familiar ones checked online (LTT is Ann. Appl. Stat. 2025; the
+  label-noise paper's authors are Einbinder, Feldman, Bates, Angelopoulos,
+  Gendler, Romano; the closest applied work is Shen and Liu 2025,
+  conformal segmentation of industrial surface defects). No prior work
+  found applying conformal risk control to image-level infrastructure
+  triage under site shift.
+- Paper mode for figures (`certus.viz.figures.PAPER_MODE`): no in-image
+  titles, tight crop, 300 dpi; `scripts/make_paper_figures.py` renders the
+  paper set from committed results only (`paper/figures/ieee/`).
+- Cut: the Method-to-Discussion sections went from 3764 words in the
+  weekly drafts to 2307 (39%, target 20%). Whole paper about 3400 words.
+- Number check: 140 numbers in the tables and text checked by script
+  against `results/`. Errors found and fixed:
+  - defect coverage "17-63%" (Weeks 13-14 drafts) is 17-79% (S1 on
+    pavement in-site is 79%);
+  - break-even "7 to 37" is 9 to 37 once joint points with epsilon above
+    prevalence (trivial, clear everything) are excluded;
+  - "marginal coverage moved by 3 points" holds for S1 only (S2: 7.6);
+  - LTT exceedance is 2-14% across scores, not 4-14%;
+  - wall HRF in the service table is 0.84, not 0.85 (also fixed in the
+    Week 14 entry above).
+- IEEE requires AI-generated text to be disclosed in the acknowledgments;
+  the draft has a disclosure sentence for the author to edit.
+
+### Open before submission
+
+- Author affiliation and city are placeholders.
+- The CBRI citation points to the Roboflow copy used here; the original
+  dataset's creators should be cited if they can be identified.
+- Faculty and peer review of the draft (the plan's evidence for this
+  week), and a similarity check (Turnitin / iThenticate) by the author.
+
+Next (Week 16): reviewer feedback, `make figures` and the fresh-clone
+check, Zenodo release, arXiv.
