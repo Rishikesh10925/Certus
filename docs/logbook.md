@@ -1561,3 +1561,66 @@ number against its source.
 
 Next (Week 16): reviewer feedback, `make figures` and the fresh-clone
 check, Zenodo release, arXiv.
+
+## Week 16: reproducibility gate and release packages
+
+### Reproducibility check: PASSED
+
+- `make figures` (`scripts/make_figures.py`) regenerates F1-F9 (ten
+  images, F2 has two) from the committed `results/` only: no data, no
+  model, no GPU. The full-size figures are now tracked in `figures/`;
+  `--paper` writes the paper set. The seven per-figure scripts from Weeks
+  12-15 were folded into it. Makefile targets `calibrate`, `e1`-`e3`,
+  `loso`, `latency`, `figures`, `paper` now run real scripts.
+- Fresh clone from GitHub into a new directory, new venv, install only
+  what `pyproject.toml` declares (torch CPU wheel first, as the README
+  says), run the figure script: all ten images produced, no errors.
+- First comparison: all ten differed from the committed ones. Cause: the
+  local venv had drifted to matplotlib 3.11.1 while the project pins
+  3.8.3, so the committed figures had been drawn with the wrong version.
+  Same numbers, different rendering. Fixed by installing the pinned 3.8.3
+  locally and regenerating: **10/10 images pixel-identical** to the fresh
+  clone. No Docker check: Docker Desktop was not running.
+
+### CI had been red since Week 13
+
+GitHub Actions failed on every push from "add f6 and f7 figures" (3 Nov)
+to "log week 15": mypy under the pinned matplotlib 3.8.3 rejects
+`Colorbar.outline.set_visible` (a stub quirk), and the local mypy, on
+matplotlib 3.11, never saw it. Fixed with a cast; mypy passes under both
+versions and CI is green again. The drift that hid this is the same one
+the fresh-clone check exposed.
+
+### Push credentials
+
+The PC's active `gh` account is now `sampada-edusite`, which got a 403 on
+this repo. With the user's agreement, the repo has a local credential
+helper that uses the stored Rishikesh10925 token; the global login was
+left alone.
+
+### Release packages (in `release/`, gitignored)
+
+- **Zenodo**: `scripts/build_benchmark.py` -> `certus-benchmark-v1.0.0.zip`
+  (32 MB): split manifest, gold labels and relabel check, 30,036 score
+  rows (S1-S7; the unused Week 4 bootstrap-label head is left out), CLIP
+  features, `results/`, SHA256SUMS, a README card, and `.zenodo.json`
+  upload metadata (CC BY 4.0 for these files). **No images**: SDNET2018 is
+  free for academic use (doi:10.15142/T3TD19) but its redistribution terms
+  could not be confirmed, so it and CBRI are cited, not copied.
+- **arXiv**: `scripts/build_arxiv.py` -> `arxiv.zip`: main.tex with
+  full-line comments stripped (arXiv publishes the source), main.bbl and
+  the five included figures; the bundle is compiled once in isolation as
+  a check (8 pages).
+- README rewritten: it still described Week 8, called the model
+  fine-tuned and claimed Hydra composition and W&B tracking, none of
+  which is true. Now: headline results table, F1 and F5, real
+  instructions, and an honest reproducibility section.
+
+### Waiting on the author
+
+- Reviewer feedback on the draft (none received yet).
+- Zenodo upload and arXiv submission (author's accounts). A first-time
+  arXiv submitter in cs.CV may need an endorsement.
+- Email spelling in the paper, and the original CBRI creators.
+
+Gate 2 (arXiv preprint public) is not met until the submission is live.
