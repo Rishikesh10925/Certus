@@ -61,3 +61,6 @@ wandb/
 
 # Zenodo / arXiv bundles, built by scripts
 /release/
+
+# personal learning guide: contains unpublished paper content, kept local like paper/
+/docs/Certus_Complete_Project_Learning_Guide.docx
