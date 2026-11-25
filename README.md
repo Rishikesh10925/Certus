@@ -5,7 +5,7 @@ Distribution-free guarantees for automated visual inspection: a conformal risk-c
 [![CI](https://github.com/Rishikesh10925/Certus/actions/workflows/ci.yml/badge.svg)](https://github.com/Rishikesh10925/Certus/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#12-license)
 
-> **Status (Week 16 of 18):** all experiments, figures F1–F9, the triage service and the console are done. The paper is drafted and under review; the arXiv link will be added here when it is public. The week-by-week record is in [`docs/logbook.md`](docs/logbook.md).
+> **Status (Week 16 of 18):** all experiments, figures F1–F9, the triage service and the web console are done. The paper is drafted and under review; the arXiv link will be added here when it is public. The week-by-week record is in [`docs/logbook.md`](docs/logbook.md).
 
 ---
 
@@ -57,7 +57,7 @@ under exchangeability alone (conformal risk control, Angelopoulos et al., ICLR 2
 | Localized CP / CRC | `src/certus/conformal/localized.py` | Adaptive-bandwidth CLIP kernel (no randomised correction) |
 | Scores S1–S7 | `src/certus/scores/` | Frozen models only; fitted scores never see calibration data (enforced in code) |
 | Triage service | `src/certus/service/`, [`service/README.md`](service/README.md) | FastAPI, per-site-type thresholds, shift check, audit sampling |
-| Console | [`ui/console.py`](ui/console.py) | Streamlit, one screen, one ε slider |
+| Web console | [`web/`](web/README.md) | React + TypeScript: batch triage with an ε slider, single-image inspection, audit queue, calibration, monitoring, research results |
 
 ## 5. Data
 
@@ -87,15 +87,25 @@ make calibrate # service calibration artifact
 make latency   # service latency (F9)
 ```
 
-## 7. Running the service and console
+## 7. Running the service and web console
+
+Needs Python (above) and Node.js 20+.
 
 ```bash
-python scripts/build_service_calibration.py              # once
-uvicorn certus.service.app:build --factory --port 8000
-streamlit run ui/console.py
+python scripts/build_service_calibration.py              # once: the calibration artifact
+cd web && npm ci && npm run build && cd ..               # once: the console (= make web)
+uvicorn certus.service.app:build --factory --port 8000   # = make serve
 ```
 
-Endpoints: `POST /v1/inspect`, `GET /v1/calibration/{cluster}`, `POST /v1/feedback`, `GET /v1/audit/next`, `GET /v1/metrics` (Prometheus). Interactive docs at `http://localhost:8000/docs`.
+Open **http://localhost:8000**. The service serves both the API and the console:
+
+- **Batch triage** — a seeded batch of held-out SDNET2018 test images, each inspected once; the ε slider re-partitions it into auto-cleared and human review, with the human-review fraction, projected review hours and the ground-truth defects that were cleared.
+- **Inspect image** — upload one image, choose the site and ε, and get the decision, the score against λ̂, the split-CP set, the shift check, the risk statement and timings; label it.
+- **Audit queue**, **Calibration**, **Monitoring** and **Research results** (E2–E4, latency, F1–F9 from `results/`).
+
+The batch console and the random-sample button need the SDNET2018 images in `data/raw/sdnet2018` (or `CERTUS_SAMPLES`); everything else works without them. For frontend development with hot reload, run `npm run dev` in `web/` (http://localhost:5173, proxying `/v1` to port 8000). Details in [`web/README.md`](web/README.md).
+
+Endpoints: `POST /v1/inspect`, `GET /v1/calibration/{cluster}`, `POST /v1/feedback`, `GET /v1/audit/next`, `GET /v1/metrics` (Prometheus), plus read-only console endpoints (`/v1/info`, `/v1/samples`, `/v1/risk-statement`, `/v1/research`). Interactive docs at `http://localhost:8000/docs`.
 
 ## 8. Repository structure
 
@@ -114,11 +124,11 @@ certus/
 │   ├── eval/       # 100-seed protocol, coverage, efficiency, LOSO, label noise
 │   ├── models/     # frozen CLIP, Qwen2-VL and OWLv2 wrappers
 │   ├── scores/     # nonconformity scores S1–S7
-│   ├── service/    # FastAPI app, calibration artifact, online scorer
+│   ├── service/    # FastAPI app, calibration artifact, online scorer, console endpoints
 │   ├── triage/     # triage policy and cost model
 │   └── viz/        # figure functions F1–F9
-├── tests/          # 220 tests, including the validity property test
-└── ui/             # Streamlit console
+├── tests/          # Python tests, including the validity property test
+└── web/            # React + TypeScript console (served by the service)
 ```
 
 ## 9. Reproducibility notes

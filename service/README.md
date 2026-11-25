@@ -20,6 +20,22 @@ package; this directory holds the run instructions.
   awaiting a label, base64; 204 when none.
 - `GET /v1/metrics` -- Prometheus text format.
 
+Read-only endpoints for the web console (`src/certus/service/web.py`;
+they never change a decision or a threshold):
+
+- `GET /v1/info` -- calibration and model versions, clusters, epsilons,
+  audit rate, whether sample images are available.
+- `GET /v1/samples?site_type=&seed=&n=` -- a seeded batch of held-out
+  SDNET2018 test images with ground truth (same draw as the old console);
+  `GET /v1/samples/image?relpath=` serves one of them.
+- `GET /v1/risk-statement?cluster=&epsilon=&decision=` -- the service's
+  own risk statement text, so the console never re-words the guarantee.
+- `GET /v1/research`, `/v1/research/{name}`, `/v1/research/figures/{F}`
+  -- whitelisted `results/` JSON (NaN sent as null) and figures.
+
+If `web/dist` exists (build it with `make web`), the console is served at
+`/`.
+
 The site id's prefix (`wall-7001` -> `wall`) picks the calibration
 cluster; anything else uses `pooled`. An image unlike every calibration
 image of its cluster (nearest-neighbour similarity below the 1st
@@ -33,9 +49,13 @@ python scripts/build_service_calibration.py   # once; ~3 s with cached features
 uvicorn certus.service.app:build --factory --port 8000
 ```
 
+Then open http://localhost:8000 for the console.
+
 Environment: `CERTUS_CALIBRATION` (artifact path, default
 `data/cache/service/calibration_v1`), `CERTUS_DB` (default
-`data/cache/service/service.sqlite`), `CERTUS_DEVICE` (`cuda`/`cpu`).
+`data/cache/service/service.sqlite`), `CERTUS_DEVICE` (`cuda`/`cpu`),
+`CERTUS_SAMPLES` (default `data/raw/sdnet2018`), `CERTUS_MANIFEST`,
+`CERTUS_RESULTS`, `CERTUS_FIGURES`, `CERTUS_WEB` (default `web/dist`).
 
 Latency: `python scripts/measure_latency.py` (writes
 `results/service/latency.json`).
