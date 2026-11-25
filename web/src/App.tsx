@@ -13,24 +13,27 @@ const MonitoringPage = lazy(() => import("./pages/Monitoring"));
 const ResearchPage = lazy(() => import("./pages/Research"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 
-function Page({ children }: { children: React.ReactNode }) {
+/** Pages sit in a centred column; "wide" pages (the triage wall) use the full width. */
+function Page({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <Suspense
-      fallback={
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-72" />
-          <Skeleton className="h-64" />
-        </div>
-      }
-    >
-      <div className="animate-fade-in">{children}</div>
-    </Suspense>
+    <div className={wide ? "w-full" : "mx-auto w-full max-w-[1440px]"}>
+      <Suspense
+        fallback={
+          <div className="space-y-4" aria-busy="true">
+            <Skeleton className="h-10 w-72" />
+            <Skeleton className="h-64" />
+          </div>
+        }
+      >
+        <div className="animate-fade-in">{children}</div>
+      </Suspense>
+    </div>
   );
 }
 
 function NotFound() {
   return (
-    <EmptyState title="Page not found" action={<Link to="/"><Button>Back to overview</Button></Link>}>
+    <EmptyState className="mx-auto max-w-[1440px]" title="Page not found" action={<Link to="/"><Button>Back to overview</Button></Link>}>
       There is no page at this address.
     </EmptyState>
   );
@@ -51,7 +54,7 @@ const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <Page><OverviewPage /></Page> },
-      { path: "triage", element: <Page><TriagePage /></Page> },
+      { path: "triage", element: <Page wide><TriagePage /></Page> },
       { path: "inspect", element: <Page><InspectPage /></Page> },
       { path: "calibration", element: <Page><CalibrationPage /></Page> },
       { path: "audit", element: <Page><AuditPage /></Page> },
