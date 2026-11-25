@@ -8,15 +8,15 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 type Size = "sm" | "md" | "lg" | "icon";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-fg hover:bg-accent/90 shadow-sm",
-  secondary: "bg-muted text-fg hover:bg-border/70",
-  outline: "border border-border bg-surface text-fg hover:bg-muted",
+  primary: "bg-accent text-accent-ink shadow-[0_4px_14px_-6px_rgb(var(--accent))] hover:bg-accent/90 active:translate-y-px",
+  secondary: "bg-sunken text-fg hover:bg-border",
+  outline: "border border-border-strong bg-surface text-fg hover:bg-muted active:bg-sunken",
   ghost: "text-subtle hover:bg-muted hover:text-fg",
-  danger: "bg-escalate text-white hover:bg-escalate/90 shadow-sm",
+  danger: "bg-danger text-white hover:bg-danger/90 shadow-sm dark:text-bg",
 };
 const sizes: Record<Size, string> = {
   sm: "h-8 px-3 text-[13px] gap-1.5",
-  md: "h-9 px-4 gap-2",
+  md: "h-9 px-4 text-[14px] gap-2",
   lg: "h-11 px-5 text-[15px] gap-2",
   icon: "h-9 w-9",
 };
@@ -33,7 +33,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex shrink-0 select-none items-center justify-center rounded-lg font-medium transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex shrink-0 select-none items-center justify-center rounded-md font-semibold transition-[background-color,color,transform] duration-150 disabled:pointer-events-none disabled:opacity-45",
         variants[variant],
         sizes[size],
         className,
@@ -72,8 +72,8 @@ export function CardHeader({
   return (
     <div className={cn("flex items-start justify-between gap-4 px-5 pt-5", className)}>
       <div className="min-w-0">
-        <h3 className="text-[15px] font-semibold tracking-tight">{title}</h3>
-        {description && <p className="mt-0.5 text-[13px] text-subtle">{description}</p>}
+        <h3 className="text-[15px] font-bold tracking-tight">{title}</h3>
+        {description && <p className="mt-1 text-[13px] leading-snug text-subtle">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -86,15 +86,16 @@ export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>
 
 /* ---------- Badge ---------- */
 
-type Tone = "neutral" | "clear" | "flag" | "escalate" | "shift" | "accent" | "defect";
+type Tone = "neutral" | "clear" | "flag" | "escalate" | "shift" | "accent" | "defect" | "danger";
 const tones: Record<Tone, string> = {
   neutral: "bg-muted text-subtle ring-border",
-  clear: "bg-clear/10 text-clear ring-clear/25",
-  flag: "bg-flag/10 text-flag ring-flag/25",
-  escalate: "bg-escalate/10 text-escalate ring-escalate/25",
-  shift: "bg-shift/10 text-shift ring-shift/25",
-  accent: "bg-accent/10 text-accent ring-accent/25",
-  defect: "bg-defect/10 text-defect ring-defect/25",
+  clear: "bg-clear-soft text-clear ring-clear/30",
+  flag: "bg-flag-soft text-flag ring-flag/30",
+  escalate: "bg-escalate-soft text-escalate ring-escalate/30",
+  shift: "bg-shift/10 text-shift ring-shift/30",
+  accent: "bg-accent-soft text-accent ring-accent/30",
+  defect: "bg-flag-soft text-defect ring-defect/30",
+  danger: "bg-danger/10 text-danger ring-danger/30",
 };
 
 export function Badge({
@@ -105,7 +106,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold ring-1 ring-inset",
         tones[tone],
         className,
       )}
@@ -115,6 +116,14 @@ export function Badge({
 }
 
 /* ---------- Stat ---------- */
+
+/** Uppercase labels would turn ε into Ε and λ̂ into Λ̂; keep Greek symbols in their own case. */
+export function keepGreekCase(label: ReactNode): ReactNode {
+  if (typeof label !== "string" || !/[Ͱ-Ͽ]/.test(label)) return label;
+  return label.split(/([Ͱ-Ͽ]̂?)/).map((part, i) =>
+    i % 2 ? <span key={i} className="normal-case">{part}</span> : part,
+  );
+}
 
 export function Stat({
   label,
@@ -127,19 +136,19 @@ export function Stat({
   label: ReactNode;
   value: ReactNode;
   hint?: ReactNode;
-  tone?: "clear" | "flag" | "escalate" | "shift" | "accent" | "defect";
+  tone?: "clear" | "flag" | "escalate" | "shift" | "accent" | "defect" | "danger";
   className?: string;
   icon?: ReactNode;
 }) {
-  const color = tone ? { clear: "text-clear", flag: "text-flag", escalate: "text-escalate", shift: "text-shift", accent: "text-accent", defect: "text-defect" }[tone] : "";
+  const color = tone ? { clear: "text-clear", flag: "text-flag", escalate: "text-escalate", shift: "text-shift", accent: "text-accent", defect: "text-defect", danger: "text-danger" }[tone] : "";
   return (
     <Card className={cn("p-4", className)}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="label">{label}</div>
-        {icon && <div className="text-subtle">{icon}</div>}
+      <div className="flex items-start justify-between gap-2">
+        <div className="kpi-label">{keepGreekCase(label)}</div>
+        {icon && <div className="text-faint">{icon}</div>}
       </div>
-      <div className={cn("num mt-2 text-[26px] font-semibold leading-none", color)}>{value}</div>
-      {hint && <div className="mt-2 text-[12px] leading-snug text-subtle">{hint}</div>}
+      <div className={cn("num mt-2.5 text-[30px] font-bold leading-none tracking-[-0.03em]", color)}>{value}</div>
+      {hint && <div className="mt-2 text-[12.5px] leading-snug text-subtle">{hint}</div>}
     </Card>
   );
 }
@@ -148,7 +157,7 @@ export function Stat({
 
 export function Skeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("relative overflow-hidden rounded-md bg-muted", className)}>
+    <div className={cn("relative overflow-hidden rounded-md bg-sunken", className)}>
       <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/5" />
     </div>
   );
@@ -165,7 +174,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
     <input
       ref={ref}
       className={cn(
-        "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[14px] text-fg placeholder:text-subtle/70 transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 aria-[invalid=true]:border-escalate",
+        "h-9 w-full rounded-md border border-border-strong bg-muted px-3 text-[14px] text-fg placeholder:text-faint transition-colors hover:border-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 aria-[invalid=true]:border-danger aria-[invalid=true]:ring-danger/30",
         className,
       )}
       {...props}
@@ -189,12 +198,12 @@ export function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-[13px] font-medium">
+      <label htmlFor={htmlFor} className="block text-[12.5px] font-semibold text-subtle">
         {label}
       </label>
       {children}
       {error ? (
-        <p className="text-[12px] text-escalate">{error}</p>
+        <p className="text-[12px] text-danger" role="alert">{error}</p>
       ) : hint ? (
         <p className="text-[12px] text-subtle">{hint}</p>
       ) : null}
@@ -204,41 +213,66 @@ export function Field({
 
 /* ---------- Segmented control ---------- */
 
+/** A single-choice radio group with roving focus (arrow keys, Home, End). */
 export function Segmented<T extends string | number>({
   value,
   onChange,
   options,
   className,
   ariaLabel,
+  size = "md",
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: { value: T; label: ReactNode }[];
+  options: { value: T; label: ReactNode; disabled?: boolean; title?: string }[];
   className?: string;
   ariaLabel?: string;
+  size?: "sm" | "md";
 }) {
+  const enabled = options.filter((o) => !o.disabled);
+  const onKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const i = enabled.findIndex((o) => o.value === value);
+    let n: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") n = Math.min(enabled.length - 1, i + 1);
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") n = Math.max(0, i - 1);
+    if (e.key === "Home") n = 0;
+    if (e.key === "End") n = enabled.length - 1;
+    if (n == null || n === i) return;
+    e.preventDefault();
+    onChange(enabled[n].value);
+    const btn = e.currentTarget.querySelector<HTMLButtonElement>(`[data-seg-index="${options.indexOf(enabled[n])}"]`);
+    btn?.focus();
+  };
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className={cn("inline-flex rounded-lg border border-border bg-muted p-0.5", className)}
+      onKeyDown={onKey}
+      className={cn("inline-flex max-w-full gap-[3px] rounded-[10px] border border-border-strong bg-muted p-[3px]", className)}
     >
-      {options.map((o) => (
-        <button
-          key={String(o.value)}
-          role="radio"
-          aria-checked={o.value === value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "h-7 rounded-md px-3 text-[13px] font-medium transition-all",
-            o.value === value
-              ? "bg-surface text-fg shadow-sm ring-1 ring-border"
-              : "text-subtle hover:text-fg",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
+      {options.map((o, idx) => {
+        const on = o.value === value;
+        return (
+          <button
+            key={String(o.value)}
+            type="button"
+            role="radio"
+            data-seg-index={idx}
+            aria-checked={on}
+            disabled={o.disabled}
+            title={o.title}
+            tabIndex={on ? 0 : -1}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "whitespace-nowrap rounded-md font-semibold transition-[background-color,color,box-shadow] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+              size === "sm" ? "h-7 px-2.5 text-[12.5px]" : "h-8 px-3.5 text-[13.5px]",
+              on ? "bg-surface text-fg shadow-card ring-1 ring-inset ring-border" : "text-subtle hover:bg-sunken hover:text-fg",
+            )}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -259,9 +293,9 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0 max-w-3xl">
-        {eyebrow && <div className="label mb-2 text-accent">{eyebrow}</div>}
-        <h1 className="text-[26px] font-semibold tracking-tight md:text-[28px]">{title}</h1>
-        {description && <p className="mt-1.5 text-[14px] text-subtle">{description}</p>}
+        {eyebrow && <p className="mb-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-accent">{eyebrow}</p>}
+        <h1 className="text-[26px] font-bold leading-[1.05] tracking-[-0.035em] md:text-[32px]">{title}</h1>
+        {description && <p className="mt-2 text-[14px] leading-relaxed text-subtle">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
