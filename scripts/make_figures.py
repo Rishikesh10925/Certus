@@ -60,11 +60,18 @@ def main() -> int:
     )
     figures.figure_f8(e3["rows"], out / "F8_economics.png", e3["prevalence"])
     loso = json.loads((res / "e4/loso_v3.json").read_text())["rows"]
-    figures.figure_f5(loso, out / "F5_loso.png", LOSO_METHODS)
-    # The paper prints one epsilon for F6 and F7 to fit the page.
+    # The paper prints one epsilon for F6 and F7 to fit the page, and draws
+    # F5 and F7 narrower so their text stays readable at two-column width.
     levels = (0.10,) if args.paper else (0.10, 0.05)
+    figures.figure_f5(loso, out / "F5_loso.png", LOSO_METHODS, width=7.2 if args.paper else 10.0)
     figures.figure_f6(loso, out / "F6_recovery.png", levels=levels)
-    figures.figure_f7(loso, out / "F7_class_coverage.png", LOSO_METHODS, levels=levels)
+    figures.figure_f7(
+        loso,
+        out / "F7_class_coverage.png",
+        LOSO_METHODS,
+        levels=levels,
+        width=7.2 if args.paper else 9.0,
+    )
     runs: dict[str, dict[str, Any]] = {}
     for device in ("cuda", "cpu"):
         with np.load(res / f"service/latency_{device}_requests.npz") as z:

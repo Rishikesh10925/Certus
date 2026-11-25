@@ -376,18 +376,21 @@ def figure_f5(
     scores: Sequence[str] = ("s1", "s2"),
     levels: Sequence[float] = (0.10, 0.05),
     sites: Sequence[str] = ("deck", "pavement", "wall", "cbri"),
+    width: float = 10.0,
 ) -> None:
     """F5 -- the shift failure and its correction: realised miss rate on
     the held-out site's defects as a multiple of epsilon, per site and
     method, one panel per (score, epsilon). Dots are means over seeds,
     whiskers the 5-95% seed range; the dashed line at 1 is the guarantee.
     The in-site reference is grey and hollow, so the shift is the distance
-    from it. Methods keep their colour and marker across panels."""
+    from it. Methods keep their colour and marker across panels. A smaller
+    `width` keeps the font sizes, so text is larger once the figure is
+    scaled to a two-column page."""
     cell = {(r["score"], r["level"], r["site"], r["method"]): r for r in rows}
     fig, axes = plt.subplots(
         len(scores),
         len(levels),
-        figsize=(10.0, 3.3 * len(scores)),
+        figsize=(width, 3.3 * len(scores) * max(width / 10.0, 0.85)),
         sharex=True,
         sharey=True,
         squeeze=False,
@@ -621,12 +624,13 @@ def figure_f7(
     scores: Sequence[str] = ("s1", "s2"),
     levels: Sequence[float] = (0.10, 0.05),
     sites: Sequence[str] = ("deck", "pavement", "wall", "cbri"),
+    width: float = 9.0,
 ) -> None:
     """F7 -- what marginal coverage hides: split-CP coverage on all of a
     held-out site, on its clean images and on its defects, per method
     (rows), one panel per (score, alpha). Cells print the coverage in
     percent; colour is the gap to 1 - alpha (red under, blue over). CBRI
-    has 3 clean images, so it shows no clean column."""
+    has 3 clean images, so it shows no clean column. `width` as in F5."""
     from matplotlib.colors import TwoSlopeNorm
 
     cell = {(r["score"], r["level"], r["site"], r["method"]): r for r in rows}
@@ -640,7 +644,7 @@ def figure_f7(
     norm = TwoSlopeNorm(vmin=-0.8, vcenter=0.0, vmax=0.1)
     cmap = plt.get_cmap("RdBu")
     fig, axes = plt.subplots(
-        len(scores) * len(levels), 1, figsize=(9.0, 2.3 * len(scores) * len(levels) + 1.0)
+        len(scores) * len(levels), 1, figsize=(width, 2.3 * len(scores) * len(levels) + 1.0)
     )
     fig.patch.set_facecolor(SURFACE)
     fig.subplots_adjust(hspace=0.65, top=0.9, bottom=0.04, left=0.2, right=0.86)
