@@ -7,8 +7,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Inter Variable"', "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono Variable"', "ui-monospace", "monospace"],
+        sans: ['"Certus Math"', '"Inter Variable"', "system-ui", "sans-serif"],
+        mono: ['"Certus Math"', '"JetBrains Mono Variable"', "ui-monospace", "monospace"],
       },
       colors: {
         bg: token("bg"),

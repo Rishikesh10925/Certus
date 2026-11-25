@@ -119,12 +119,15 @@ function Efficiency({ data }: { data: E3 }) {
             <ResponsiveContainer>
               <ComposedChart data={chart} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
                 <CartesianGrid stroke={colors.grid} vertical={false} />
-                <XAxis dataKey="eps" tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={{ stroke: colors.grid }} label={{ value: "ε", position: "insideBottomRight", offset: -2, fill: colors.axis, fontSize: 12 }} />
+                <XAxis dataKey="eps" tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={{ stroke: colors.grid }} />
                 <YAxis domain={[0, 1]} tickFormatter={(v) => pct(v)} tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={false} />
                 <Tooltip content={<ChartTooltip format={(v) => (Array.isArray(v) ? "" : pct(v as number, 1))} labelFormat={(l) => `ε = ${l}`} />} />
-                <Legend iconType="plainline" wrapperStyle={{ fontSize: 12 }} />
+                <Legend
+                  wrapperStyle={{ fontSize: 12 }}
+                  payload={scores.map((s, i) => ({ value: SCORE_NAMES[s] ?? s, type: "plainline", id: s, color: colors.series[i], payload: { strokeDasharray: "" } }))}
+                />
                 {scores.map((s, i) => (
-                  <Area key={`${s}-ci`} dataKey={`${s}_ci`} stroke="none" fill={colors.series[i]} fillOpacity={0.12} legendType="none" name={`${s} CI`} isAnimationActive={false} activeDot={false} tooltipType="none" />
+                  <Area key={`${s}-ci`} dataKey={`${s}_ci`} stroke="none" fill={colors.series[i]} fillOpacity={0.18} legendType="none" name={`${s} CI`} isAnimationActive={false} activeDot={false} tooltipType="none" />
                 ))}
                 {scores.map((s, i) => (
                   <Line key={s} dataKey={s} name={SCORE_NAMES[s] ?? s} stroke={colors.series[i]} strokeWidth={2.25} dot={{ r: 3 }} type="monotone" />

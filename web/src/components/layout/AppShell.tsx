@@ -45,7 +45,7 @@ function Logo() {
       </div>
       <div className="leading-tight">
         <div className="text-[15px] font-semibold tracking-tight">Certus</div>
-        <div className="text-[11px] text-subtle">Risk-controlled triage</div>
+        <div className="hidden text-[11px] text-subtle sm:block">Risk-controlled triage</div>
       </div>
     </div>
   );
@@ -68,7 +68,7 @@ function ServiceStatus() {
           {ok && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-clear opacity-50" />}
           <span className={cn("relative inline-flex h-2 w-2 rounded-full", info.isPending ? "bg-subtle" : ok ? "bg-clear" : "bg-escalate")} />
         </span>
-        <span className="font-medium">{label}</span>
+        <span className="hidden whitespace-nowrap font-medium sm:inline">{label}</span>
         {ok && <span className="num hidden text-subtle sm:inline">{info.data.calibration_version}</span>}
       </div>
     </Tip>
