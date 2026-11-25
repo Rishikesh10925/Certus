@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Certus Math"', '"Space Grotesk Variable"', '"Segoe UI"', "system-ui", "sans-serif"],
+        sans: ['"Certus Math"', '"Geist Variable"', "ui-sans-serif", '"Segoe UI"', "sans-serif"],
         mono: ['"Certus Math"', '"JetBrains Mono Variable"', "ui-monospace", '"Cascadia Mono"', "monospace"],
       },
       colors: {
@@ -20,6 +20,7 @@ export default {
         fg: token("fg"),
         subtle: token("subtle"),
         faint: token("faint"),
+        signal: token("signal"),
         accent: token("accent"),
         "accent-fg": token("accent-fg"),
         "accent-ink": token("accent-ink"),
@@ -36,10 +37,12 @@ export default {
         shift: token("shift"),
         "shift-ink": token("shift-ink"),
         defect: token("defect"),
+        "defect-soft": token("defect-soft"),
+        "tick-outline": token("tick-outline"),
         danger: token("danger"),
       },
       borderRadius: {
-        xl: "14px",
+        xl: "12px",
       },
       boxShadow: {
         card: "var(--shadow-1)",

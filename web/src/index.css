@@ -1,7 +1,7 @@
-@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/geist";
 @import "@fontsource-variable/jetbrains-mono";
 
-/* Space Grotesk has no anchor for a hat over lambda, so "λ̂" renders the mark
+/* Geist has no anchor for a hat over lambda, so "λ̂" renders the mark
    off to the side. Draw lambda and the combining circumflex from a serif font
    that positions it; every other character keeps the main font. */
 @font-face {
@@ -16,81 +16,89 @@
 @tailwind utilities;
 
 @layer base {
-  /* Control room. Light: slate. Dark: deep navy. One indigo accent; decision
-     colours are semantic (clear emerald, flag rose, escalate amber) and every
-     use is paired with an icon. Values are "r g b" so Tailwind can add alpha. */
+  /* Instrument. Dark-first graphite with hairline borders and one lime signal
+     (λ̂, focus, the active ε). Light is "lab paper": the signal darkens for
+     contrast. Decision colours are desaturated and always paired with a shape:
+     clear = green circle-check, flag = amber triangle, escalate = violet
+     diamond. Values are "r g b" so Tailwind can add alpha. */
   :root {
-    --bg: 233 237 243;
-    --bg-grid: 15 23 42;
+    --bg: 244 244 240;
+    --bg-grid: 20 30 40;
     --bg-grid-a: 0.045;
     --surface: 255 255 255;
-    --muted: 244 246 250;
-    --sunken: 230 234 241;
-    --border: 211 218 229;
-    --border-strong: 183 193 209;
-    --fg: 11 19 36;
-    --subtle: 68 82 106;
-    --faint: 93 106 128;
+    --muted: 250 250 247;
+    --sunken: 240 241 236;
+    --border: 228 229 228;
+    --border-strong: 207 209 210;
+    --fg: 17 22 28;
+    --subtle: 68 77 87;
+    --faint: 93 102 112;
 
-    --accent: 67 56 202;
+    /* signal: lines and fills; accent: signal used as text / fill with ink */
+    --signal: 90 125 0;
+    --accent: 74 102 0;
     --accent-ink: 255 255 255;
     --accent-fg: var(--accent-ink);
-    --accent-soft: 230 232 251;
+    --accent-soft: 233 238 216;
 
-    --clear: 4 120 87;
-    --clear-soft: 216 243 232;
+    --clear: 44 122 83;
+    --clear-soft: 234 242 238;
     --clear-ink: 255 255 255;
-    --flag: 190 18 60;
-    --flag-soft: 253 227 232;
+    --flag: 154 97 16;
+    --flag-soft: 245 239 231;
     --flag-ink: 255 255 255;
-    --escalate: 180 83 9;
-    --escalate-soft: 253 236 211;
+    --escalate: 106 82 196;
+    --escalate-soft: 240 238 249;
     --escalate-ink: 255 255 255;
-    --shift: 109 40 217;
+    --shift: 21 110 150;
     --shift-ink: 255 255 255;
-    /* Ground truth: a real defect. Shares the rose family with FLAG. */
-    --defect: 190 18 60;
-    /* Errors and failed requests, not decisions. */
+    /* ground truth: a real defect */
+    --defect: 179 52 75;
+    --defect-soft: 247 234 237;
     --danger: 185 28 28;
+    /* the λ̂ tick drawn over photos: a dark outline keeps lime legible on pale concrete */
+    --tick-outline: 11 13 16;
 
-    --shadow-1: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 1px rgb(15 23 42 / 0.04);
-    --shadow-2: 0 10px 30px -12px rgb(15 23 42 / 0.35);
+    --shadow-1: 0 1px 2px rgb(20 30 40 / 0.06);
+    --shadow-2: 0 24px 60px -24px rgb(20 30 40 / 0.3), 0 0 0 1px rgb(16 24 32 / 0.1);
     color-scheme: light;
   }
   .dark {
-    --bg: 7 13 27;
-    --bg-grid: 148 163 255;
-    --bg-grid-a: 0.05;
-    --surface: 15 23 41;
-    --muted: 20 30 53;
-    --sunken: 27 39 66;
-    --border: 35 48 80;
-    --border-strong: 51 67 106;
-    --fg: 232 237 247;
-    --subtle: 169 182 205;
-    --faint: 147 161 187;
+    --bg: 11 13 16;
+    --bg-grid: 255 255 255;
+    --bg-grid-a: 0.028;
+    --surface: 16 19 23;
+    --muted: 21 26 31;
+    --sunken: 27 33 39;
+    --border: 35 38 42;
+    --border-strong: 52 56 61;
+    --fg: 231 234 238;
+    --subtle: 167 176 186;
+    --faint: 135 144 155;
 
-    --accent: 139 147 255;
-    /* Dark ink on the pale indigo fill: about 6.5:1 (white would be 2.8:1). */
-    --accent-ink: 11 16 48;
-    --accent-soft: 29 35 80;
+    --signal: 200 243 29;
+    --accent: 200 243 29;
+    --accent-ink: 11 13 16;
+    --accent-soft: 30 37 18;
 
-    --clear: 52 211 153;
-    --clear-soft: 15 58 48;
-    --clear-ink: 4 20 14;
-    --flag: 251 113 133;
-    --flag-soft: 68 23 42;
-    --flag-ink: 29 6 16;
-    --escalate: 251 191 36;
-    --escalate-soft: 62 43 10;
-    --escalate-ink: 29 19 2;
-    --shift: 196 181 253;
-    --shift-ink: 22 11 51;
-    --defect: 251 113 133;
-    --danger: 248 113 113;
+    --clear: 98 189 142;
+    --clear-soft: 26 39 37;
+    --clear-ink: 8 20 14;
+    --flag: 221 168 92;
+    --flag-soft: 43 38 32;
+    --flag-ink: 26 17 4;
+    --escalate: 165 146 230;
+    --escalate-soft: 35 36 51;
+    --escalate-ink: 18 12 40;
+    --shift: 120 196 228;
+    --shift-ink: 6 22 30;
+    --defect: 239 142 156;
+    --defect-soft: 44 29 34;
+    --danger: 240 113 120;
+    --tick-outline: 11 13 16;
 
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
-    --shadow-2: 0 18px 40px -16px rgb(0 0 0 / 0.8);
+    --shadow-2: 0 24px 60px -20px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.075);
     color-scheme: dark;
   }
   html {
@@ -99,10 +107,11 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-bg font-sans text-[14.5px] leading-relaxed text-fg;
+    @apply bg-bg font-sans text-[13.5px] leading-[1.45] text-fg;
     background-image: linear-gradient(rgb(var(--bg-grid) / var(--bg-grid-a)) 1px, transparent 1px),
       linear-gradient(90deg, rgb(var(--bg-grid) / var(--bg-grid-a)) 1px, transparent 1px);
-    background-size: 28px 28px;
+    background-size: 24px 24px;
+    background-attachment: fixed;
     min-height: 100vh;
     overflow-x: clip;
   }
@@ -110,7 +119,8 @@
     @apply bg-accent/25;
   }
   :focus-visible {
-    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-surface;
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
   }
   h1,
   h2,
@@ -128,7 +138,7 @@
   }
   /* Uppercase section / KPI label of the control-room cards. */
   .kpi-label {
-    @apply flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.08em] text-subtle;
+    @apply flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.09em] text-subtle;
   }
   /* λ̂, q̂, ε and other symbols set as maths. */
   .sym {
@@ -157,17 +167,12 @@
     display: none;
   }
   /* Pattern fills so decisions never rely on colour alone. */
-  .hatch-flag {
-    background: repeating-linear-gradient(135deg, rgb(var(--flag)) 0 5px, rgb(var(--flag) / 0.6) 5px 7px);
-  }
   .hatch-clear-zone {
-    background: repeating-linear-gradient(135deg, rgb(var(--clear) / 0.55) 0 4px, rgb(var(--clear) / 0.22) 4px 8px);
+    background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgb(var(--clear) / 0.16) 6px 7px),
+      linear-gradient(180deg, transparent, rgb(var(--clear) / 0.14));
   }
-  .rail-flag {
-    background: repeating-linear-gradient(180deg, rgb(var(--flag)) 0 6px, transparent 6px 9px);
-  }
-  .rail-escalate {
-    background: repeating-linear-gradient(180deg, rgb(var(--escalate)) 0 2px, transparent 2px 5px);
+  .hatch-flag {
+    background: repeating-linear-gradient(135deg, rgb(var(--flag)) 0 4px, rgb(var(--flag) / 0.55) 4px 6px);
   }
 }
 
@@ -178,4 +183,10 @@
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
+}
+
+@keyframes blip {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.45); }
+  100% { transform: scale(1); }
 }
