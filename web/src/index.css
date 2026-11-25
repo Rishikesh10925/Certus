@@ -1,0 +1,76 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: 247 248 250;
+    --surface: 255 255 255;
+    --muted: 241 243 246;
+    --border: 226 230 236;
+    --fg: 17 24 39;
+    --subtle: 100 110 128;
+    --accent: 15 118 110;
+    --accent-fg: 255 255 255;
+    --clear: 5 150 105;
+    --flag: 217 119 6;
+    --escalate: 225 29 72;
+    --shift: 124 58 237;
+    --defect: 220 38 38;
+    color-scheme: light;
+  }
+  .dark {
+    --bg: 9 11 16;
+    --surface: 17 20 27;
+    --muted: 26 30 39;
+    --border: 38 44 56;
+    --fg: 236 239 244;
+    --subtle: 145 154 171;
+    --accent: 45 212 191;
+    --accent-fg: 4 47 46;
+    --clear: 52 211 153;
+    --flag: 251 191 36;
+    --escalate: 251 113 133;
+    --shift: 167 139 250;
+    --defect: 248 113 113;
+    color-scheme: dark;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-bg text-fg font-sans text-[14px] leading-relaxed;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    @apply bg-accent/20;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent/60 ring-offset-2 ring-offset-bg;
+  }
+}
+
+@layer components {
+  .num {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+  .label {
+    @apply text-[11px] font-medium uppercase tracking-[0.08em] text-subtle;
+  }
+  .prose-sm p + p {
+    @apply mt-3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
