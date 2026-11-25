@@ -1624,3 +1624,23 @@ left alone.
 - Email spelling in the paper, and the original CBRI creators.
 
 Gate 2 (arXiv preprint public) is not met until the submission is live.
+
+### Web console: React replaces Streamlit (25 Nov)
+
+- `web/`: React + TypeScript (Vite, Tailwind, Radix UI, Recharts,
+  TanStack Query). Pages: overview, batch triage (the old console, same
+  seeded batches), single-image inspection with labelling, audit queue,
+  calibration, live monitoring, research results (E2, E3, LOSO, latency,
+  F1-F9) and settings; light and dark themes, phone layout.
+- The batch console still inspects each image once and re-partitions
+  locally per epsilon. The rule is a line-for-line copy of
+  `POST /v1/inspect` (`web/src/lib/triage.ts`, unit-tested); the page
+  checks it against the service's own decisions at epsilon = 5%. On wall
+  batch 0 all 48 agreed.
+- Service: `src/certus/service/web.py` adds read-only endpoints
+  (`/v1/info`, `/v1/samples`, `/v1/risk-statement`, `/v1/research`) and
+  serves `web/dist` at `/`. The triage contract and every decision path
+  are unchanged; the risk statement shown is the service's own text.
+  9 new tests; 229 Python tests pass.
+- Streamlit removed (`ui/`, the dependency). Run: `make web` once, then
+  `make serve` and open http://localhost:8000.
