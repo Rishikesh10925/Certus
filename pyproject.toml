@@ -21,7 +21,6 @@ dependencies = [
     "uvicorn[standard]==0.27.1",
     "pydantic==2.6.3",
     "python-multipart==0.0.33",  # FastAPI form/file uploads
-    "streamlit==1.56.0",  # the console (ui/)
     "scikit-learn==1.4.1.post1",
     "dvc==3.44.0",
     "pathspec==0.11.2",  # dvc 3.44.0 breaks on pathspec>=1.0 (removed _DIR_MARK)

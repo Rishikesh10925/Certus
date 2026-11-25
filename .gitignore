@@ -49,9 +49,9 @@ paper/*.bbl
 paper/*.blg
 paper/*.synctex.gz
 
-# Node (ui/)
-ui/node_modules/
-ui/dist/
+# Node (web/)
+web/node_modules/
+web/dist/
 
 # Weights & Biases
 wandb/
