@@ -9,7 +9,7 @@ import { useSettings } from "@/lib/settings";
 import type { InspectResult, SampleItem } from "@/lib/types";
 import { Badge, Button, Card, CardBody, CardHeader, Field, Input, PageHeader } from "@/components/ui/primitives";
 import { Select, Tip } from "@/components/ui/radix";
-import { DECISION_EXPLAIN, DECISION_ICON, DECISION_META, DECISION_SOFT, DECISION_SOLID, DecisionBadge, FeedbackForm, KV, RiskStatement, ScoreScale, ShiftMeter } from "@/components/domain";
+import { DECISION_EXPLAIN, DECISION_ICON, DECISION_META, DECISION_BORDER, DECISION_SOFT, DECISION_TEXT, DecisionBadge, FeedbackForm, KV, RiskStatement, ScoreScale, ShiftMeter } from "@/components/domain";
 import { EmptyState, ErrorState } from "@/components/States";
 import { decisionLabel } from "@/lib/format";
 
@@ -132,7 +132,7 @@ export default function InspectPage() {
                 tabIndex={0}
                 aria-label="Choose or drop an image"
                 className={cn(
-                  "group relative grid aspect-[4/3] cursor-pointer place-items-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
+                  "group relative grid aspect-[4/3] cursor-pointer place-items-center overflow-hidden rounded-xl border border-dashed transition-colors",
                   dragging ? "border-accent bg-accent-soft" : "border-border-strong bg-muted hover:border-accent hover:bg-accent-soft/50",
                 )}
               >
@@ -268,23 +268,23 @@ function ResultPanel({ entry }: { entry: HistoryEntry }) {
   return (
     <div className="space-y-4 animate-fade-in">
       <Card className="overflow-hidden">
-        <div className={cn("border-b border-border p-5", DECISION_SOFT[r.decision])}>
+        <div className={cn("border-b border-border px-4 py-3.5", DECISION_SOFT[r.decision])}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-xl", DECISION_SOLID[r.decision])}>
-                <Icon className="h-6 w-6" />
+              <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg border bg-surface", DECISION_BORDER[r.decision], DECISION_TEXT[r.decision])}>
+                <Icon className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-[22px] font-bold tracking-[-0.02em]">
+                <div className={cn("text-[18px] font-semibold tracking-[-0.02em]", DECISION_TEXT[r.decision])}>
                   {decisionLabel[r.decision]}
-                  {DECISION_META[r.decision].qualifier && <span className="font-medium text-subtle"> · {DECISION_META[r.decision].qualifier}</span>}
+                  {DECISION_META[r.decision].qualifier && <span className="font-normal text-subtle"> · {DECISION_META[r.decision].qualifier}</span>}
                 </div>
                 <div className="text-[13px] text-subtle">
                   {r.decision === "FLAG" && r.defect_type ? `Likely ${r.defect_type} (pre-filled for the reviewer)` : DECISION_EXPLAIN[r.decision].split(":")[0]}
                 </div>
               </div>
             </div>
-            <div className="num text-right text-[12px] text-subtle">
+            <div className="num text-right text-[11.5px] text-faint">
               <div>inspection #{r.inspection_id}</div>
               <div>{r.site_id} → {clusterLabel(r.cluster)} · ε {eps(r.epsilon)}</div>
             </div>
@@ -294,12 +294,12 @@ function ResultPanel({ entry }: { entry: HistoryEntry }) {
           <RiskStatement text={r.risk_statement} />
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <span className="label">Score vs threshold</span>
+              <span className="text-[11.5px] font-semibold uppercase tracking-[0.09em] text-subtle">Score vs threshold</span>
               <Tip content="Auto-clear iff s > λ̂ (conformal risk control). λ̂ = ∞ means this ε clears nothing.">
                 <span tabIndex={0} className="cursor-help rounded text-[12px] text-subtle underline decoration-dotted">how is this decided?</span>
               </Tip>
             </div>
-            <ScoreScale score={r.score} lam={r.lambda_hat} />
+            <ScoreScale score={r.score} lam={r.lambda_hat} decision={r.decision} />
           </div>
         </CardBody>
       </Card>
@@ -334,7 +334,7 @@ function ResultPanel({ entry }: { entry: HistoryEntry }) {
             {timings.map(([k, v]) => (
               <div key={k}>
                 <div className="flex justify-between text-[12px]"><span className="capitalize text-subtle">{k}</span><span className="num">{ms(v)}</span></div>
-                <div className="mt-1 h-1.5 rounded-full bg-sunken"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(1, (100 * v) / (total || 1))}%` }} /></div>
+                <div className="mt-1 h-[3px] rounded-sm bg-sunken"><div className="h-full rounded-sm bg-signal" style={{ width: `${Math.max(1, (100 * v) / (total || 1))}%` }} /></div>
               </div>
             ))}
             <dl className="mt-3 divide-y divide-border border-t border-border pt-1">
