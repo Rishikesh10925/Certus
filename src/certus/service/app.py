@@ -14,7 +14,8 @@ there (paper, Section Results). A random share of auto-cleared images is
 held for audit, which is how a deployment would notice a broken guarantee.
 
 Run: uvicorn certus.service.app:build --factory  (env: CERTUS_CALIBRATION,
-CERTUS_DB, CERTUS_DEVICE).
+CERTUS_DB, CERTUS_DEVICE). build() also mounts the web console's read-only
+endpoints and its static build (service/web.py).
 """
 
 from __future__ import annotations
@@ -146,6 +147,11 @@ def create_app(
     escalate_on_shift: bool = True,
 ) -> FastAPI:
     app = FastAPI(title="Certus triage service", version="1.0")
+    # Read by web.mount_web (GET /v1/info); the triage logic below does not use them.
+    app.state.calibration = cal
+    app.state.model_version = scorer.model_version
+    app.state.audit_rate = audit_rate
+    app.state.escalate_on_shift = escalate_on_shift
     db = sqlite3.connect(str(db_path), check_same_thread=False)
     db.executescript(SCHEMA)
     lock = threading.Lock()
@@ -310,4 +316,14 @@ def build() -> FastAPI:
     scorer = ClipScorer(text, device=os.environ.get("CERTUS_DEVICE") or None)
     if scorer.model_version != cal.model_version:
         raise RuntimeError(f"scorer {scorer.model_version} != calibration {cal.model_version}")
-    return create_app(cal, scorer, os.environ.get("CERTUS_DB", "data/cache/service/service.sqlite"))
+    from certus.service.web import mount_web
+
+    app = create_app(cal, scorer, os.environ.get("CERTUS_DB", "data/cache/service/service.sqlite"))
+    return mount_web(
+        app,
+        manifest=Path(os.environ.get("CERTUS_MANIFEST", "data/manifest/splits_v1.csv")),
+        data_root=Path(os.environ.get("CERTUS_SAMPLES", "data/raw/sdnet2018")),
+        results_dir=Path(os.environ.get("CERTUS_RESULTS", "results")),
+        figures_dir=Path(os.environ.get("CERTUS_FIGURES", "figures")),
+        static_dir=Path(os.environ.get("CERTUS_WEB", "web/dist")),
+    )
