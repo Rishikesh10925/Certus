@@ -1,4 +1,4 @@
-.PHONY: setup data calibrate e1 e2 e3 loso latency figures paper clean
+.PHONY: setup data calibrate serve web web-dev e1 e2 e3 loso latency figures paper clean
 
 PYTHON ?= python
 DATA_PATH ?=
@@ -20,6 +20,18 @@ data:
 
 calibrate:
 	$(PYTHON) scripts/build_service_calibration.py
+
+# Triage service + web console on http://localhost:8000 (run `make web` once first).
+serve:
+	$(PYTHON) -m uvicorn certus.service.app:build --factory --port 8000
+
+# Build the React console into web/dist, which the service serves at /.
+web:
+	cd web && npm ci && npm run build
+
+# Console with hot reload on http://localhost:5173, proxying /v1 to the service.
+web-dev:
+	cd web && npm run dev
 
 # Experiments (need the raw images or the score cache, and a GPU for scoring).
 e1:
