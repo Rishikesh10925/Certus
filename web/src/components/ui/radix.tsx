@@ -84,7 +84,7 @@ export function Select({
         id={id}
         aria-label={ariaLabel}
         className={cn(
-          "inline-flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border-strong bg-muted px-3 text-[14px] transition-colors hover:border-faint focus:outline-none focus:ring-2 focus:ring-accent/30",
+          "inline-flex h-9 w-full items-center justify-between gap-2 rounded-[5px] border border-border-strong bg-muted px-3 text-[13.5px] transition-colors hover:border-faint focus:outline-none focus-visible:border-accent focus-visible:ring-1 focus-visible:ring-accent",
           className,
         )}
       >
@@ -97,14 +97,14 @@ export function Select({
         <SelectPrimitive.Content
           position="popper"
           sideOffset={4}
-          className="z-50 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[10px] border border-border-strong bg-surface p-1 shadow-pop animate-fade-in"
+          className="z-50 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-border-strong bg-surface p-1 shadow-pop animate-fade-in"
         >
           <SelectPrimitive.Viewport>
             {options.map((o) => (
               <SelectPrimitive.Item
                 key={o.value}
                 value={o.value}
-                className="relative flex h-8 cursor-default select-none items-center rounded-md pl-7 pr-3 text-[14px] outline-none data-[highlighted]:bg-accent-soft data-[highlighted]:text-fg"
+                className="relative flex h-8 cursor-default select-none items-center rounded-[4px] pl-7 pr-3 text-[13.5px] outline-none data-[highlighted]:bg-sunken data-[highlighted]:text-fg"
               >
                 <SelectPrimitive.ItemIndicator className="absolute left-2">
                   <Check className="h-3.5 w-3.5 text-accent" />
@@ -135,7 +135,7 @@ export function TabsList({ tabs, className }: { tabs: { value: string; label: Re
         <TabsPrimitive.Trigger
           key={t.value}
           value={t.value}
-          className="relative -mb-px whitespace-nowrap border-b-[3px] border-transparent px-3 pb-2.5 pt-1 text-[13.5px] font-medium text-subtle transition-colors hover:text-fg focus-visible:ring-offset-0 data-[state=active]:border-accent data-[state=active]:font-bold data-[state=active]:text-fg"
+          className="relative -mb-px whitespace-nowrap border-b-2 border-transparent px-3 pb-2.5 pt-1 text-[13px] text-subtle transition-colors hover:text-fg data-[state=active]:border-signal data-[state=active]:font-medium data-[state=active]:text-fg"
         >
           {t.label}
         </TabsPrimitive.Trigger>
@@ -164,16 +164,16 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[rgb(4_8_20/0.55)] animate-fade-in" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[rgb(4_6_8/0.62)] backdrop-blur-[2px] animate-fade-in" />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100vw-32px)] max-w-3xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-pop animate-fade-in focus:outline-none md:p-6",
+            "fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100vw-32px)] max-w-3xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border-strong bg-surface p-4 shadow-pop animate-fade-in focus:outline-none md:p-5",
             className,
           )}
         >
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
-              <DialogPrimitive.Title className="text-[17px] font-bold tracking-tight">
+              <DialogPrimitive.Title className="text-[15px] font-semibold tracking-[-0.01em]">
                 {title}
               </DialogPrimitive.Title>
               {description ? (
@@ -184,7 +184,7 @@ export function Dialog({
                 <DialogPrimitive.Description className="sr-only">Details</DialogPrimitive.Description>
               )}
             </div>
-            <DialogPrimitive.Close className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border text-subtle hover:bg-muted hover:text-fg" aria-label="Close (Esc)">
+            <DialogPrimitive.Close className="grid h-8 w-8 shrink-0 place-items-center rounded-[5px] border border-border-strong text-subtle hover:bg-sunken hover:text-fg" aria-label="Close (Esc)">
               <X className="h-4 w-4" />
             </DialogPrimitive.Close>
           </div>
@@ -206,7 +206,7 @@ export function Tip({ content, children }: { content: ReactNode; children: React
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content
           sideOffset={6}
-          className="z-50 max-w-xs rounded-md bg-fg px-2.5 py-1.5 text-[12.5px] leading-snug text-surface shadow-pop animate-fade-in"
+          className="z-50 max-w-[240px] rounded-[5px] bg-fg px-2 py-1.5 text-[11.5px] leading-snug text-bg shadow-pop animate-fade-in"
         >
           {content}
         </TooltipPrimitive.Content>
@@ -234,9 +234,9 @@ export function Switch({
       aria-label={ariaLabel}
       checked={checked}
       onCheckedChange={onCheckedChange}
-      className="relative h-6 w-[42px] shrink-0 rounded-full border border-border-strong bg-sunken transition-colors data-[state=checked]:border-accent data-[state=checked]:bg-accent"
+      className="relative h-[18px] w-8 shrink-0 rounded-full border border-border-strong bg-sunken transition-colors data-[state=checked]:border-accent data-[state=checked]:bg-accent-soft"
     >
-      <SwitchPrimitive.Thumb className="block h-[18px] w-[18px] translate-x-[2px] rounded-full bg-surface shadow-[0_1px_3px_rgb(0_0_0/0.35)] transition-transform data-[state=checked]:translate-x-[20px]" />
+      <SwitchPrimitive.Thumb className="block h-3 w-3 translate-x-[2px] rounded-full bg-subtle transition-[transform,background-color] data-[state=checked]:translate-x-[16px] data-[state=checked]:bg-accent" />
     </SwitchPrimitive.Root>
   );
 }
@@ -257,6 +257,7 @@ export function Sheet({
   side = "right",
   className,
   onKeyDown,
+  headerActions,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -267,39 +268,41 @@ export function Sheet({
   side?: "right" | "left";
   className?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  headerActions?: ReactNode;
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[rgb(4_8_20/0.55)] animate-fade-in" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[rgb(4_6_8/0.62)] backdrop-blur-[2px] animate-fade-in" />
         <DialogPrimitive.Content
           onKeyDown={onKeyDown}
           className={cn(
             "fixed z-50 flex flex-col bg-surface shadow-pop focus:outline-none",
             side === "right"
-              ? "inset-x-0 bottom-0 h-[92dvh] rounded-t-[18px] border-t border-border animate-slide-in-up md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[min(540px,100vw)] md:rounded-none md:border-l md:border-t-0 md:animate-slide-in-right"
-              : "inset-y-0 left-0 w-[min(300px,86vw)] border-r border-border animate-slide-in-left",
+              ? "inset-y-0 right-0 w-[min(520px,100vw)] border-l border-border-strong animate-slide-in-right"
+              : "inset-y-0 left-0 w-[min(260px,86vw)] border-r border-border-strong animate-slide-in-left",
             className,
           )}
         >
-          <div className="flex items-center gap-3 border-b border-border py-3 pl-5 pr-4">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <div className="min-w-0 flex-1">
-              <DialogPrimitive.Title className="truncate text-[16px] font-bold tracking-tight">{title}</DialogPrimitive.Title>
+              <DialogPrimitive.Title className="truncate text-[15px] font-semibold tracking-[-0.01em]">{title}</DialogPrimitive.Title>
               {description ? (
                 <DialogPrimitive.Description className="num truncate text-[12px] text-faint">{description}</DialogPrimitive.Description>
               ) : (
                 <DialogPrimitive.Description className="sr-only">Details</DialogPrimitive.Description>
               )}
             </div>
+            {headerActions}
             <DialogPrimitive.Close
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border text-fg hover:border-border-strong hover:bg-muted"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-[5px] border border-border-strong text-fg hover:bg-sunken"
               aria-label="Close (Esc)"
             >
               <X className="h-[18px] w-[18px]" />
             </DialogPrimitive.Close>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-          {footer && <div className="border-t border-border px-5 py-3">{footer}</div>}
+          {footer && <div className="border-t border-border px-4 py-2.5">{footer}</div>}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

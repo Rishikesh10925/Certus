@@ -8,17 +8,17 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 type Size = "sm" | "md" | "lg" | "icon";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-ink shadow-[0_4px_14px_-6px_rgb(var(--accent))] hover:bg-accent/90 active:translate-y-px",
-  secondary: "bg-sunken text-fg hover:bg-border",
-  outline: "border border-border-strong bg-surface text-fg hover:bg-muted active:bg-sunken",
-  ghost: "text-subtle hover:bg-muted hover:text-fg",
-  danger: "bg-danger text-white hover:bg-danger/90 shadow-sm dark:text-bg",
+  primary: "bg-accent text-accent-ink hover:bg-accent/90 active:translate-y-px",
+  secondary: "border border-border bg-sunken text-fg hover:border-border-strong",
+  outline: "border border-border-strong bg-surface text-fg hover:bg-sunken active:translate-y-px",
+  ghost: "text-subtle hover:bg-sunken hover:text-fg",
+  danger: "bg-danger text-white hover:bg-danger/90 dark:text-bg",
 };
 const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-[13px] gap-1.5",
-  md: "h-9 px-4 text-[14px] gap-2",
-  lg: "h-11 px-5 text-[15px] gap-2",
-  icon: "h-9 w-9",
+  sm: "h-8 px-3 text-[12.5px] gap-1.5",
+  md: "h-9 px-3.5 text-[13.5px] gap-2",
+  lg: "h-10 px-4 text-[14px] gap-2",
+  icon: "h-8 w-8",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -33,7 +33,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex shrink-0 select-none items-center justify-center rounded-md font-semibold transition-[background-color,color,transform] duration-150 disabled:pointer-events-none disabled:opacity-45",
+        "inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap rounded-[5px] font-medium transition-[background-color,border-color,color,transform] duration-150 disabled:pointer-events-none disabled:opacity-45",
         variants[variant],
         sizes[size],
         className,
@@ -52,7 +52,7 @@ Button.displayName = "Button";
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("rounded-xl border border-border bg-surface shadow-card", className)}
+      className={cn("rounded-xl border border-border bg-surface", className)}
       {...props}
     />
   );
@@ -70,10 +70,10 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 px-5 pt-5", className)}>
-      <div className="min-w-0">
-        <h3 className="text-[15px] font-bold tracking-tight">{title}</h3>
-        {description && <p className="mt-1 text-[13px] leading-snug text-subtle">{description}</p>}
+    <div className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-border px-4 py-3", className)}>
+      <div className="min-w-0 flex-1 basis-64">
+        <h3 className="text-[14px] font-semibold tracking-[-0.01em]">{title}</h3>
+        {description && <p className="mt-0.5 text-[12.5px] leading-snug text-faint">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -81,7 +81,7 @@ export function CardHeader({
 }
 
 export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5", className)} {...props} />;
+  return <div className={cn("p-4", className)} {...props} />;
 }
 
 /* ---------- Badge ---------- */
@@ -94,7 +94,7 @@ const tones: Record<Tone, string> = {
   escalate: "bg-escalate-soft text-escalate ring-escalate/30",
   shift: "bg-shift/10 text-shift ring-shift/30",
   accent: "bg-accent-soft text-accent ring-accent/30",
-  defect: "bg-flag-soft text-defect ring-defect/30",
+  defect: "bg-defect-soft text-defect ring-defect/30",
   danger: "bg-danger/10 text-danger ring-danger/30",
 };
 
@@ -106,7 +106,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold ring-1 ring-inset",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-[4px] px-1.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset",
         tones[tone],
         className,
       )}
@@ -142,13 +142,13 @@ export function Stat({
 }) {
   const color = tone ? { clear: "text-clear", flag: "text-flag", escalate: "text-escalate", shift: "text-shift", accent: "text-accent", defect: "text-defect", danger: "text-danger" }[tone] : "";
   return (
-    <Card className={cn("p-4", className)}>
+    <Card className={cn("px-4 py-3", className)}>
       <div className="flex items-start justify-between gap-2">
-        <div className="kpi-label">{keepGreekCase(label)}</div>
+        <div className="text-[12px] text-subtle">{label}</div>
         {icon && <div className="text-faint">{icon}</div>}
       </div>
-      <div className={cn("num mt-2.5 text-[30px] font-bold leading-none tracking-[-0.03em]", color)}>{value}</div>
-      {hint && <div className="mt-2 text-[12.5px] leading-snug text-subtle">{hint}</div>}
+      <div className={cn("num mt-1.5 text-[24px] font-medium leading-[1.1] tracking-[-0.02em]", color)}>{value}</div>
+      {hint && <div className="mt-1 text-[11.5px] leading-snug text-faint">{hint}</div>}
     </Card>
   );
 }
@@ -174,7 +174,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
     <input
       ref={ref}
       className={cn(
-        "h-9 w-full rounded-md border border-border-strong bg-muted px-3 text-[14px] text-fg placeholder:text-faint transition-colors hover:border-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 aria-[invalid=true]:border-danger aria-[invalid=true]:ring-danger/30",
+        "h-9 w-full rounded-[5px] border border-border-strong bg-muted px-3 text-[13.5px] text-fg placeholder:text-faint transition-colors hover:border-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent focus-visible:outline-none aria-[invalid=true]:border-danger aria-[invalid=true]:text-danger",
         className,
       )}
       {...props}
@@ -198,7 +198,7 @@ export function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-[12.5px] font-semibold text-subtle">
+      <label htmlFor={htmlFor} className="block text-[12px] font-medium text-subtle">
         {label}
       </label>
       {children}
@@ -248,7 +248,7 @@ export function Segmented<T extends string | number>({
       role="radiogroup"
       aria-label={ariaLabel}
       onKeyDown={onKey}
-      className={cn("inline-flex max-w-full gap-[3px] rounded-[10px] border border-border-strong bg-muted p-[3px]", className)}
+      className={cn("inline-flex max-w-full gap-0.5 rounded-[5px] border border-border bg-sunken p-0.5", className)}
     >
       {options.map((o, idx) => {
         const on = o.value === value;
@@ -264,9 +264,9 @@ export function Segmented<T extends string | number>({
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(o.value)}
             className={cn(
-              "whitespace-nowrap rounded-md font-semibold transition-[background-color,color,box-shadow] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
-              size === "sm" ? "h-7 px-2.5 text-[12.5px]" : "h-8 px-3.5 text-[13.5px]",
-              on ? "bg-surface text-fg shadow-card ring-1 ring-inset ring-border" : "text-subtle hover:bg-sunken hover:text-fg",
+              "whitespace-nowrap rounded-[4px] transition-[background-color,color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50",
+              size === "sm" ? "h-6 px-2 text-[12px]" : "h-7 px-2.5 text-[12.5px]",
+              on ? "bg-surface font-medium text-fg shadow-[0_0_0_1px_rgb(var(--border-strong)),0_1px_2px_rgb(0_0_0/0.25)]" : "text-subtle hover:text-fg",
             )}
           >
             {o.label}
@@ -291,11 +291,21 @@ export function PageHeader({
   eyebrow?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0 max-w-3xl">
-        {eyebrow && <p className="mb-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-accent">{eyebrow}</p>}
-        <h1 className="text-[26px] font-bold leading-[1.05] tracking-[-0.035em] md:text-[32px]">{title}</h1>
-        {description && <p className="mt-2 text-[14px] leading-relaxed text-subtle">{description}</p>}
+        {eyebrow && (
+          <p className="mb-1 flex gap-1.5 font-mono text-[11.5px] lowercase text-faint">
+            <span>{eyebrow}</span>
+            {typeof title === "string" && (
+              <>
+                <span aria-hidden>/</span>
+                <b className="font-medium text-subtle">{title}</b>
+              </>
+            )}
+          </p>
+        )}
+        <h1 className="text-[22px] font-semibold leading-[1.1] tracking-[-0.025em] md:text-[26px]">{title}</h1>
+        {description && <p className="mt-1.5 text-[13px] leading-relaxed text-subtle">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

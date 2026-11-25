@@ -21,11 +21,12 @@ export function useChartColors() {
       flag: v("flag"),
       escalate: v("escalate"),
       shift: v("shift"),
-      // Categorical series, led by the indigo accent and chosen to stay
-      // distinct in both themes (and from the decision colours' meaning).
+      signal: v("signal"),
+      // Categorical series led by the signal, chosen to stay distinct in both
+      // themes (the lab-paper set is darkened for contrast on white).
       series: dark
-        ? ["#8b93ff", "#22d3ee", "#fbbf24", "#f472b6", "#a3e635", "#fb923c", "#c4b5fd", "#5eead4", "#94a3b8"]
-        : ["#4338ca", "#0e7490", "#b45309", "#be185d", "#4d7c0f", "#c2410c", "#7c3aed", "#0f766e", "#475569"],
+        ? ["#C8F31D", "#6CC3EA", "#F0A35E", "#C792EA", "#F28FAD", "#8FD4B5", "#E6D36B", "#9AA5B1", "#5E9CF0"]
+        : ["#4A6600", "#0E6E99", "#B4601A", "#7A3FB8", "#B3344B", "#2C7A53", "#8A7A00", "#56606B", "#2F5FC4"],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dark]);
@@ -42,7 +43,7 @@ interface TooltipProps {
 export function ChartTooltip({ active, payload, label, format, labelFormat }: TooltipProps) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-md border border-border-strong bg-surface px-3 py-2 text-[12px] shadow-pop">
+    <div className="rounded-[5px] border border-border-strong bg-surface px-2.5 py-2 text-[11.5px] shadow-pop">
       {label != null && <div className="num mb-1 font-semibold">{labelFormat ? labelFormat(label) : label}</div>}
       {payload.map((p, i) =>
         p.value == null ? null : (
@@ -62,7 +63,7 @@ export function ChartTooltip({ active, payload, label, format, labelFormat }: To
 /** Shared Recharts axis / grid props so every chart reads the same. */
 export function axisProps(colors: { axis: string; grid: string }) {
   return {
-    tick: { fill: colors.axis, fontSize: 12, fontFamily: '"JetBrains Mono Variable", ui-monospace, monospace' },
+    tick: { fill: colors.axis, fontSize: 11, fontFamily: '"JetBrains Mono Variable", ui-monospace, monospace' },
     tickLine: false,
   } as const;
 }
