@@ -54,7 +54,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
               <div>
                 <label htmlFor="truth" className="text-[13px] font-medium">Show ground truth</label>
-                <p className="text-[12px] text-subtle">Red borders and miss counts in the batch console.</p>
+                <p className="text-[12px] text-subtle">Defect markers and the missed-defect count in the batch console.</p>
               </div>
               <Switch id="truth" checked={settings.showTruth} onCheckedChange={(v) => update({ showTruth: v })} />
             </div>

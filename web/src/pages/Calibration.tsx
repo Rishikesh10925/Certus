@@ -8,7 +8,8 @@ import { useInfo } from "@/lib/queries";
 import type { ClusterCalibration } from "@/lib/types";
 import { Badge, Card, CardBody, CardHeader, PageHeader, Segmented, Skeleton, Stat } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/States";
-import { ChartTooltip, useChartColors } from "@/components/charts";
+import { GuaranteeFormula } from "@/components/domain";
+import { axisProps, ChartTooltip, useChartColors } from "@/components/charts";
 
 export default function CalibrationPage() {
   const info = useInfo();
@@ -42,11 +43,14 @@ export default function CalibrationPage() {
       />
       {err ? <ErrorState error={err} /> : null}
 
-      <Card className="mb-6">
+      <Card className="mb-6 border-accent/35 bg-accent-soft">
         <CardBody className="flex flex-col gap-3 md:flex-row md:items-center">
           <ShieldCheck className="h-5 w-5 shrink-0 text-accent" />
           <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-medium">Guarantee: <span className="font-mono text-[13px]">{cur?.guarantee ?? "…"}</span></div>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[14px] font-semibold">
+              <span className="kpi-label text-accent">Guarantee{cur ? ` · ${cur.guarantee.split(":")[0]}` : ""}</span>
+              <GuaranteeFormula />
+            </div>
             <p className="mt-0.5 text-[12.5px] text-subtle">
               Holds on average over calibration draws, assuming new images are exchangeable with the cluster's calibration images.
               It is not a promise about any single image, and it broke under site shift (see Research → Site shift).
@@ -77,7 +81,7 @@ export default function CalibrationPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-[13px]">
                     <thead>
-                      <tr className="border-b border-border text-left">
+                      <tr className="border-b border-border-strong text-left">
                         <th className="label py-2 pr-4 font-medium">ε (max miss rate)</th>
                         <th className="label py-2 pr-4 text-right font-medium">λ̂ (CRC)</th>
                         <th className="label py-2 text-right font-medium">q̂ (LAC)</th>
@@ -85,7 +89,7 @@ export default function CalibrationPage() {
                     </thead>
                     <tbody>
                       {cur.thresholds.map((t) => (
-                        <tr key={t.epsilon} className="border-b border-border/60 last:border-0">
+                        <tr key={t.epsilon} className="border-b border-border/70 transition-colors last:border-0 hover:bg-muted">
                           <td className="num py-2.5 pr-4 font-medium">{eps(t.epsilon)}</td>
                           <td className="num py-2.5 pr-4 text-right">{lambda(t.lambda_hat)}{t.lambda_hat == null && <span className="ml-1 text-subtle">(clears nothing)</span>}</td>
                           <td className="num py-2.5 text-right">{fixed(t.q_hat)}</td>
@@ -103,8 +107,8 @@ export default function CalibrationPage() {
                   <ResponsiveContainer>
                     <LineChart data={chart} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
                       <CartesianGrid stroke={colors.grid} vertical={false} />
-                      <XAxis dataKey="eps" tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={{ stroke: colors.grid }} />
-                      <YAxis domain={["auto", "auto"]} tickFormatter={(v) => (v as number).toFixed(2)} tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={false} />
+                      <XAxis dataKey="eps" {...axisProps(colors)} axisLine={{ stroke: colors.grid }} />
+                      <YAxis domain={["auto", "auto"]} tickFormatter={(v) => (v as number).toFixed(2)} {...axisProps(colors)} axisLine={false} />
                       <Tooltip content={<ChartTooltip format={(v) => fixed(v as number)} labelFormat={(l) => `ε = ${l}`} />} />
                       <Legend iconType="plainline" wrapperStyle={{ fontSize: 12 }} />
                       {order.map((c, i) => (

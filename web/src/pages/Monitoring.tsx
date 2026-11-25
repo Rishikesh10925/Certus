@@ -7,7 +7,7 @@ import type { ServiceMetrics } from "@/lib/metrics";
 import { DECISIONS } from "@/lib/types";
 import { Badge, Card, CardBody, CardHeader, PageHeader, Skeleton, Stat } from "@/components/ui/primitives";
 import { ErrorState, EmptyState } from "@/components/States";
-import { ChartTooltip, useChartColors } from "@/components/charts";
+import { axisProps, ChartTooltip, useChartColors } from "@/components/charts";
 
 const POLL = 5000;
 
@@ -75,8 +75,8 @@ export default function MonitoringPage() {
                     <ResponsiveContainer>
                       <BarChart data={bars} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
                         <CartesianGrid stroke={colors.grid} vertical={false} />
-                        <XAxis dataKey="name" tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={{ stroke: colors.grid }} />
-                        <YAxis allowDecimals={false} tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={false} />
+                        <XAxis dataKey="name" {...axisProps(colors)} axisLine={{ stroke: colors.grid }} />
+                        <YAxis allowDecimals={false} {...axisProps(colors)} axisLine={false} />
                         <Tooltip cursor={{ fill: colors.grid, opacity: 0.4 }} content={<ChartTooltip format={(v) => int(v as number)} />} />
                         <Bar dataKey="value" name="Inspections" radius={[6, 6, 0, 0]} maxBarSize={72}>
                           {bars.map((b) => <Cell key={b.d} fill={tone[b.d]} />)}
@@ -116,8 +116,8 @@ export default function MonitoringPage() {
                           </linearGradient>
                         </defs>
                         <CartesianGrid stroke={colors.grid} vertical={false} />
-                        <XAxis dataKey="t" tick={{ fill: colors.axis, fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={40} />
-                        <YAxis tickFormatter={(v) => `${Math.round(v)}`} tick={{ fill: colors.axis, fontSize: 11 }} tickLine={false} axisLine={false} unit=" ms" width={64} />
+                        <XAxis dataKey="t" {...axisProps(colors)} axisLine={false} minTickGap={40} />
+                        <YAxis tickFormatter={(v) => `${Math.round(v)}`} {...axisProps(colors)} axisLine={false} unit=" ms" width={64} />
                         <Tooltip content={<ChartTooltip format={(v) => ms(v as number)} />} />
                         <Area type="monotone" name="p95" dataKey="p95" stroke={colors.accent} fill="url(#lat)" strokeWidth={2} />
                         <Area type="monotone" name="p50" dataKey="p50" stroke={colors.series[1]} fill="none" strokeWidth={1.5} />

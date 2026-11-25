@@ -6,9 +6,9 @@ import { clusterLabel, eps, int, lambda, pct } from "@/lib/format";
 import { useInfo, useMetrics } from "@/lib/queries";
 import { useSettings } from "@/lib/settings";
 import type { ClusterCalibration } from "@/lib/types";
-import { Badge, Card, CardBody, CardHeader, Skeleton } from "@/components/ui/primitives";
+import { Button, Card, CardBody, CardHeader, Skeleton } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/States";
-import { KV } from "@/components/domain";
+import { EscalateMark, GuaranteeFormula, KV } from "@/components/domain";
 
 const ACTIONS = [
   { to: "/triage", icon: SlidersHorizontal, title: "Batch triage", text: "Move ε and watch a batch of held-out images re-partition into auto-cleared and human review." },
@@ -32,22 +32,24 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <Card className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgb(var(--accent)/0.14),transparent_55%)]" />
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full border border-accent/10" />
-        <div className="pointer-events-none absolute -right-4 -top-4 h-40 w-40 rounded-full border border-accent/10" />
+      <Card className="relative overflow-hidden border-l-4 border-l-accent">
         <CardBody className="relative p-6 md:p-8">
-          <Badge tone="accent" className="mb-4">Conformal risk control · frozen vision-language models</Badge>
-          <h1 className="max-w-3xl text-[28px] font-semibold leading-tight tracking-tight md:text-[34px]">
+          <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-accent">Conformal risk control · frozen vision-language models</p>
+          <h1 className="max-w-3xl text-[28px] font-bold leading-[1.08] tracking-[-0.035em] md:text-[36px]">
             Which inspection images can skip a human, and how many real defects will that miss?
           </h1>
-          <p className="mt-3 max-w-2xl text-[14.5px] text-subtle">
+          <p className="mt-3 max-w-2xl text-[14.5px] leading-relaxed text-subtle">
             Certus turns a model's score into an auto-clear threshold λ̂ with a finite-sample bound:
             on average, at most ε of real defects are auto-cleared, assuming new images look like the calibration images.
             The model is never retrained; the score only sets the price, measured as the human-review fraction.
           </p>
-          <div className="mt-6 rounded-xl border border-border bg-surface/80 px-4 py-3 font-mono text-[13px] backdrop-blur md:inline-block">
-            E[ P(auto-cleared | defect) ] ≤ ε
+          <div className="mt-6 inline-flex flex-wrap items-center gap-x-3 gap-y-1 rounded-r-md border-l-[3px] border-accent bg-accent-soft px-4 py-2.5">
+            <span className="kpi-label text-accent">The guarantee</span>
+            <GuaranteeFormula className="text-[16px]" />
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link to="/triage"><Button>Open batch triage <ArrowRight className="h-4 w-4" /></Button></Link>
+            <Link to="/inspect"><Button variant="outline">Inspect an image</Button></Link>
           </div>
         </CardBody>
       </Card>
@@ -59,10 +61,10 @@ export default function OverviewPage() {
         {ACTIONS.map(({ to, icon: Icon, title, text }) => (
           <Link key={to} to={to} className="group">
             <Card className="h-full p-5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-accent/40 group-hover:shadow-pop">
-              <div className="mb-3 grid h-9 w-9 place-items-center rounded-lg bg-accent/10 text-accent">
+              <div className="mb-3 grid h-9 w-9 place-items-center rounded-lg bg-accent-soft text-accent transition-colors group-hover:bg-accent group-hover:text-accent-ink">
                 <Icon className="h-4.5 w-4.5" />
               </div>
-              <div className="flex items-center gap-1.5 text-[14.5px] font-semibold">
+              <div className="flex items-center gap-1.5 text-[15px] font-bold tracking-tight">
                 {title}
                 <ArrowRight className="h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
               </div>
@@ -85,9 +87,9 @@ export default function OverviewPage() {
               : all.map((c) => {
                   const t = c.thresholds.find((x) => x.epsilon === e);
                   return (
-                    <div key={c.cluster} className="rounded-xl border border-border bg-muted/40 p-4">
-                      <div className="label">{clusterLabel(c.cluster)}</div>
-                      <div className="num mt-2 text-[24px] font-semibold">{t ? lambda(t.lambda_hat) : "—"}</div>
+                    <div key={c.cluster} className="rounded-[10px] border border-border bg-muted p-4">
+                      <div className="kpi-label">{clusterLabel(c.cluster)}</div>
+                      <div className="num mt-2 text-[26px] font-bold tracking-[-0.03em]">{t ? lambda(t.lambda_hat) : "—"}</div>
                       <div className="mt-1 text-[12px] text-subtle">λ̂ · {int(c.n_defects)} defects / {int(c.n_cal)}</div>
                     </div>
                   );
@@ -123,15 +125,18 @@ export default function OverviewPage() {
         </CardBody>
       </Card>
 
-      <Card className="border-flag/30 bg-flag/5">
-        <CardBody className="text-[13px] leading-relaxed">
-          <span className="font-semibold">Limits of the guarantee.</span>{" "}
+      <Card className="border-escalate/35 bg-escalate-soft">
+        <CardBody className="flex gap-3 text-[13.5px] leading-relaxed">
+          <EscalateMark className="mt-0.5 h-5 w-5 text-escalate" />
+          <p>
+          <span className="font-bold">Limits of the guarantee.</span>{" "}
           <span className="text-subtle">
             It bounds the miss rate in expectation over calibration draws, not for a single batch or image. It assumes the
             deployment images are exchangeable with the calibration set; leave-one-site-out showed miss rates of 2–3× ε on a new
             structure type, which is why the service escalates images that fail its shift check. All scores are off-the-shelf
             (best AUC 0.79), so the review costs describe these scores, not the method.
           </span>
+          </p>
         </CardBody>
       </Card>
     </div>

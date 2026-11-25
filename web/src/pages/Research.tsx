@@ -9,7 +9,7 @@ import { useResearch, useResearchIndex } from "@/lib/queries";
 import { Badge, Card, CardBody, CardHeader, PageHeader, Segmented, Skeleton, Stat } from "@/components/ui/primitives";
 import { Dialog, Tabs, TabsContent, TabsList } from "@/components/ui/radix";
 import { ErrorState } from "@/components/States";
-import { ChartTooltip, useChartColors } from "@/components/charts";
+import { axisProps, ChartTooltip, useChartColors } from "@/components/charts";
 
 /* ---- result file shapes (only the fields used here) ---- */
 
@@ -119,8 +119,8 @@ function Efficiency({ data }: { data: E3 }) {
             <ResponsiveContainer>
               <ComposedChart data={chart} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
                 <CartesianGrid stroke={colors.grid} vertical={false} />
-                <XAxis dataKey="eps" tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={{ stroke: colors.grid }} />
-                <YAxis domain={[0, 1]} tickFormatter={(v) => pct(v)} tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={false} />
+                <XAxis dataKey="eps" {...axisProps(colors)} axisLine={{ stroke: colors.grid }} />
+                <YAxis domain={[0, 1]} tickFormatter={(v) => pct(v)} {...axisProps(colors)} axisLine={false} />
                 <Tooltip content={<ChartTooltip format={(v) => (Array.isArray(v) ? "" : pct(v as number, 1))} labelFormat={(l) => `ε = ${l}`} />} />
                 <Legend
                   wrapperStyle={{ fontSize: 12 }}
@@ -201,8 +201,8 @@ function Scores({ data }: { data: E2 }) {
             <ResponsiveContainer>
               <BarChart data={chart} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
                 <CartesianGrid stroke={colors.grid} vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={{ stroke: colors.grid }} />
-                <YAxis domain={[0, 1]} tickFormatter={(v) => pct(v)} tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={false} />
+                <XAxis dataKey="name" {...axisProps(colors)} axisLine={{ stroke: colors.grid }} />
+                <YAxis domain={[0, 1]} tickFormatter={(v) => pct(v)} {...axisProps(colors)} axisLine={false} />
                 <Tooltip cursor={{ fill: colors.grid, opacity: 0.4 }} content={<ChartTooltip format={(v) => pct(v as number, 1)} />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="hrf" name="Human-review fraction" fill={colors.series[0]} radius={[5, 5, 0, 0]} maxBarSize={44} />
@@ -285,8 +285,8 @@ function Shift({ data }: { data: Loso }) {
             <ResponsiveContainer>
               <BarChart data={chart} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
                 <CartesianGrid stroke={colors.grid} vertical={false} />
-                <XAxis dataKey="site" tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={{ stroke: colors.grid }} />
-                <YAxis tickFormatter={(v) => `${v}×`} tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={false} />
+                <XAxis dataKey="site" {...axisProps(colors)} axisLine={{ stroke: colors.grid }} />
+                <YAxis tickFormatter={(v) => `${v}×`} {...axisProps(colors)} axisLine={false} />
                 <Tooltip cursor={{ fill: colors.grid, opacity: 0.4 }} content={<ChartTooltip format={(v) => `${(v as number).toFixed(2)}× ε`} />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <ReferenceLine y={1} stroke={colors.defect} strokeDasharray="4 4" label={{ value: "ε", fill: colors.defect, fontSize: 11, position: "right" }} />
@@ -360,8 +360,8 @@ function Service() {
             <ResponsiveContainer>
               <BarChart data={chart} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid stroke={colors.grid} vertical={false} />
-                <XAxis dataKey="q" tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={{ stroke: colors.grid }} />
-                <YAxis tick={{ fill: colors.axis, fontSize: 12 }} tickLine={false} axisLine={false} unit=" ms" width={70} />
+                <XAxis dataKey="q" {...axisProps(colors)} axisLine={{ stroke: colors.grid }} />
+                <YAxis {...axisProps(colors)} axisLine={false} unit=" ms" width={70} />
                 <Tooltip cursor={{ fill: colors.grid, opacity: 0.4 }} content={<ChartTooltip format={(v) => ms(v as number)} />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <ReferenceLine y={cuda.data.budget_ms} stroke={colors.defect} strokeDasharray="4 4" label={{ value: "budget", fill: colors.defect, fontSize: 11, position: "insideTopRight" }} />
@@ -371,8 +371,8 @@ function Service() {
             </ResponsiveContainer>
           </div>
           <div className="mt-2 flex gap-2 text-[12px]">
-            <Badge tone={cuda.data.p95_within_budget ? "clear" : "escalate"}>GPU {cuda.data.p95_within_budget ? "within" : "over"} budget</Badge>
-            <Badge tone={cpu.data.p95_within_budget ? "clear" : "escalate"}>CPU {cpu.data.p95_within_budget ? "within" : "over"} budget</Badge>
+            <Badge tone={cuda.data.p95_within_budget ? "clear" : "danger"}>GPU {cuda.data.p95_within_budget ? "within" : "over"} budget</Badge>
+            <Badge tone={cpu.data.p95_within_budget ? "clear" : "danger"}>CPU {cpu.data.p95_within_budget ? "within" : "over"} budget</Badge>
           </div>
         </CardBody>
       </Card>
@@ -431,8 +431,8 @@ function Figures() {
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {idx.data.figures.map((f) => (
-          <button key={f} onClick={() => setOpen(f)} className="group text-left">
-            <Card className="overflow-hidden transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-pop">
+          <button key={f} onClick={() => setOpen(f)} className="group rounded-xl text-left" aria-label={`Enlarge figure: ${CAPTIONS[f] ?? f}`}>
+            <Card className="overflow-hidden transition-[transform,box-shadow] duration-200 group-hover:-translate-y-[3px] group-hover:shadow-pop">
               <div className="relative aspect-[4/3] bg-white p-3">
                 <img src={api.figureUrl(f)} alt={CAPTIONS[f] ?? f} loading="lazy" className="h-full w-full object-contain" />
                 <Maximize2 className="absolute right-3 top-3 h-4 w-4 text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100" />

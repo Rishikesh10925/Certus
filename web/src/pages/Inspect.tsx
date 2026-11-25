@@ -9,7 +9,7 @@ import { useSettings } from "@/lib/settings";
 import type { InspectResult, SampleItem } from "@/lib/types";
 import { Badge, Button, Card, CardBody, CardHeader, Field, Input, PageHeader } from "@/components/ui/primitives";
 import { Select, Tip } from "@/components/ui/radix";
-import { DECISION_EXPLAIN, DECISION_ICON, DECISION_TONE, DecisionBadge, FeedbackForm, KV, RiskStatement, ScoreScale, ShiftMeter } from "@/components/domain";
+import { DECISION_EXPLAIN, DECISION_ICON, DECISION_META, DECISION_SOFT, DECISION_SOLID, DecisionBadge, FeedbackForm, KV, RiskStatement, ScoreScale, ShiftMeter } from "@/components/domain";
 import { EmptyState, ErrorState } from "@/components/States";
 import { decisionLabel } from "@/lib/format";
 
@@ -133,7 +133,7 @@ export default function InspectPage() {
                 aria-label="Choose or drop an image"
                 className={cn(
                   "group relative grid aspect-[4/3] cursor-pointer place-items-center overflow-hidden rounded-xl border-2 border-dashed transition-colors",
-                  dragging ? "border-accent bg-accent/5" : "border-border hover:border-accent/50 hover:bg-muted/50",
+                  dragging ? "border-accent bg-accent-soft" : "border-border-strong bg-muted hover:border-accent hover:bg-accent-soft/50",
                 )}
               >
                 {picked ? (
@@ -144,7 +144,7 @@ export default function InspectPage() {
                         e.stopPropagation();
                         setPicked(null);
                       }}
-                      className="absolute right-2 top-2 rounded-md bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-md bg-[rgb(4_8_20/0.6)] text-white opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                       aria-label="Remove image"
                     >
                       <X className="h-4 w-4" />
@@ -193,7 +193,7 @@ export default function InspectPage() {
               </Field>
               <div className="flex flex-wrap gap-1.5">
                 {["wall-7001", "deck-7001", "pavement-7001", "facade-1"].map((s) => (
-                  <button key={s} onClick={() => setSiteId(s)} className={cn("rounded-md px-2 py-0.5 font-mono text-[11px] ring-1 ring-inset transition-colors", siteId === s ? "bg-accent/10 text-accent ring-accent/30" : "text-subtle ring-border hover:text-fg")}>
+                  <button key={s} onClick={() => setSiteId(s)} className={cn("rounded-md px-2 py-0.5 font-mono text-[11px] ring-1 ring-inset transition-colors", siteId === s ? "bg-accent-soft text-accent ring-accent/40" : "text-subtle ring-border hover:bg-muted hover:text-fg")}>
                     {s}
                   </button>
                 ))}
@@ -262,21 +262,23 @@ export default function InspectPage() {
 function ResultPanel({ entry }: { entry: HistoryEntry }) {
   const r = entry.result;
   const Icon = DECISION_ICON[r.decision];
-  const tone = DECISION_TONE[r.decision];
-  const toneBg = { clear: "from-clear/15 text-clear", flag: "from-flag/15 text-flag", escalate: "from-escalate/15 text-escalate" }[tone];
+
   const timings = Object.entries(r.timings_ms).filter(([k]) => k !== "total");
   const total = r.timings_ms.total ?? timings.reduce((a, [, v]) => a + v, 0);
   return (
     <div className="space-y-4 animate-fade-in">
       <Card className="overflow-hidden">
-        <div className={cn("bg-gradient-to-br to-transparent p-5", toneBg)}>
+        <div className={cn("border-b border-border p-5", DECISION_SOFT[r.decision])}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-surface shadow-sm ring-1 ring-border">
-                <Icon className="h-5 w-5" />
+              <div className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-xl", DECISION_SOLID[r.decision])}>
+                <Icon className="h-6 w-6" />
               </div>
               <div>
-                <div className="text-[22px] font-semibold tracking-tight">{decisionLabel[r.decision]}</div>
+                <div className="text-[22px] font-bold tracking-[-0.02em]">
+                  {decisionLabel[r.decision]}
+                  {DECISION_META[r.decision].qualifier && <span className="font-medium text-subtle"> · {DECISION_META[r.decision].qualifier}</span>}
+                </div>
                 <div className="text-[13px] text-subtle">
                   {r.decision === "FLAG" && r.defect_type ? `Likely ${r.defect_type} (pre-filled for the reviewer)` : DECISION_EXPLAIN[r.decision].split(":")[0]}
                 </div>
@@ -294,7 +296,7 @@ function ResultPanel({ entry }: { entry: HistoryEntry }) {
             <div className="mb-3 flex items-center justify-between">
               <span className="label">Score vs threshold</span>
               <Tip content="Auto-clear iff s > λ̂ (conformal risk control). λ̂ = ∞ means this ε clears nothing.">
-                <span className="cursor-help text-[12px] text-subtle underline decoration-dotted">how is this decided?</span>
+                <span tabIndex={0} className="cursor-help rounded text-[12px] text-subtle underline decoration-dotted">how is this decided?</span>
               </Tip>
             </div>
             <ScoreScale score={r.score} lam={r.lambda_hat} />
@@ -332,7 +334,7 @@ function ResultPanel({ entry }: { entry: HistoryEntry }) {
             {timings.map(([k, v]) => (
               <div key={k}>
                 <div className="flex justify-between text-[12px]"><span className="capitalize text-subtle">{k}</span><span className="num">{ms(v)}</span></div>
-                <div className="mt-1 h-1.5 rounded-full bg-muted"><div className="h-full rounded-full bg-accent/70" style={{ width: `${Math.max(1, (100 * v) / (total || 1))}%` }} /></div>
+                <div className="mt-1 h-1.5 rounded-full bg-sunken"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(1, (100 * v) / (total || 1))}%` }} /></div>
               </div>
             ))}
             <dl className="mt-3 divide-y divide-border border-t border-border pt-1">
